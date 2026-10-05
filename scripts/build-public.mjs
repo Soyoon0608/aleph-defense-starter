@@ -4,14 +4,14 @@ import { deploymentIdentity } from './deployment-identity.mjs';
 
 const root = resolve(import.meta.dirname, '..');
 const config = JSON.parse(await readFile(resolve(root, 'aleph.config.json'), 'utf8'));
-if (![1, 2].includes(config.step)) {
-  throw new Error('현재 빌드는 1단계와 2단계만 지원합니다.');
+if (![1, 2, 3].includes(config.step)) {
+  throw new Error('현재 빌드는 1~3단계를 지원합니다.');
 }
 const data = JSON.parse(await readFile(resolve(root, 'data.json'), 'utf8'));
 if (!Array.isArray(data.notes)) {
   throw new Error('자료 형식을 확인하세요.');
 }
-if (config.step === 2 && data.notes.length !== 0) {
+if (config.step >= 2 && data.notes.length !== 0) {
   throw new Error('2단계에서는 코드에 메모를 남길 수 없습니다.');
 }
 await mkdir(resolve(root, 'public'), { recursive: true });
