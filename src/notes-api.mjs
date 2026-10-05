@@ -38,6 +38,8 @@ export async function handleNotes(req, res, single = false) {
         return res.status(400).json({ error: 'JSON 형식을 확인해 주세요.' });
       }
       if (!input || Array.isArray(input) ||
+          Object.keys(input).some(key =>
+            !(req.method === 'POST' ? ['id', 'title', 'body'] : ['title', 'body']).includes(key)) ||
           typeof input.title !== 'string' || !input.title.trim() ||
           input.title.length > 200 ||
           typeof input.body !== 'string' || !input.body.trim() ||
@@ -76,10 +78,10 @@ export async function handleNotes(req, res, single = false) {
       return res.status(201).json({ id: newId });
     }
 
-    // 3단계: 로그인만 검사합니다. 단일 메모의 소유자 검사는 4단계에서 추가합니다.
+    // 4단계: 검증된 사용자 ID와 소유자가 일치하는 행만 처리합니다.
     if (req.method === 'GET') {
       const { data, error } = await db.from('byteback_notes')
-        .select('id, title, content').eq('id', id).maybeSingle();
+        .select('id, title, content').eq('id', id).eq('owner_id', login.userId).maybeSingle();
       if (error) throw error;
       if (!data) return res.status(404).json({ error: '메모가 없습니다.' });
       return res.status(200).json({
@@ -90,14 +92,14 @@ export async function handleNotes(req, res, single = false) {
     if (req.method === 'PUT') {
       const { data, error } = await db.from('byteback_notes')
         .update({ title: input.title.trim(), content: input.body })
-        .eq('id', id).select('id').maybeSingle();
+        .eq('id', id).eq('owner_id', login.userId).select('id').maybeSingle();
       if (error) throw error;
       if (!data) return res.status(404).json({ error: '메모가 없습니다.' });
       return res.status(200).json({ id: data.id });
     }
 
     const { data, error } = await db.from('byteback_notes')
-      .delete().eq('id', id).select('id').maybeSingle();
+      .delete().eq('id', id).eq('owner_id', login.userId).select('id').maybeSingle();
     if (error) throw error;
     if (!data) return res.status(404).json({ error: '메모가 없습니다.' });
     return res.status(200).json({ id: data.id });

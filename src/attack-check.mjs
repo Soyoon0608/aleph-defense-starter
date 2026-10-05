@@ -1,6 +1,7 @@
 // The student changes this check as each stage adds an attack to the same app.
 // Never return tokens, private keys, real names, or note bodies.
 export async function runAttackChecks(config) {
+  if (config.step === 4) return runStepFourChecks(config);
   if (config.step === 3) return runStepThreeChecks(config);
   if (config.step === 2) return runStepTwoChecks(config);
   if (config.step !== 1) throw new Error('이 단계의 공격 점검을 src/attack-check.mjs에 구현해 주세요.');
@@ -142,6 +143,40 @@ async function runStepThreeChecks(config) {
     } catch {
       results.push({ attackId, expected, observed: '요청 실패; 확인하지 못함' });
     }
+  }
+  return results;
+}
+
+async function runStepFourChecks(config) {
+  const results = await runStepThreeChecks(config);
+  const expected = '公開用キーだけの直接Data API要求を拒否'.replace(
+    '公開用キーだけの直接Data API要求を拒否',
+    '공개용 키만 사용한 직접 Data API 요청 거부');
+  try {
+    const origin = new URL(config.identityProvider.issuer).origin;
+    const response = await fetch(
+      origin + '/rest/v1/byteback_notes?select=id&limit=1',
+      {
+        headers: { apikey: 'sb_publishable_bXsYOg9-Xygu4sMUfSj_Fg_YR1oDl3e' },
+        redirect: 'error',
+        signal: AbortSignal.timeout(10000)
+      }
+    );
+    results.push({
+      attackId: 'anonymous_direct_data_read',
+      expected,
+      observed: ([401, 403].includes(response.status)
+        ? '직접 Data API 요청 거부 확인'
+        : '직접 Data API 거부 확인 실패') +
+        ' (HTTP ' + response.status + ')'
+    });
+    await response.body?.cancel();
+  } catch {
+    results.push({
+      attackId: 'anonymous_direct_data_read',
+      expected,
+      observed: '요청 실패; 확인하지 못함'
+    });
   }
   return results;
 }
