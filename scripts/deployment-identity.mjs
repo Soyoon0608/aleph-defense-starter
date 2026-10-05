@@ -21,6 +21,7 @@ export function deploymentIdentity(env, config) {
   return {
     schema: 'aleph.defense.deployment.v1',
     step: config.step,
+    ...(config.step >= 5 ? { originalApiUrl: config.originalApiUrl } : {}),
     repoUrl: `https://github.com/${owner.toLowerCase()}/${repo.toLowerCase()}`,
     commit: commit.toLowerCase(),
     publicAppUrl: `https://${host.toLowerCase()}`,
