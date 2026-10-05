@@ -1,6 +1,7 @@
 // The student changes this check as each stage adds an attack to the same app.
 // Never return tokens, private keys, real names, or note bodies.
 export async function runAttackChecks(config) {
+  if (config.step === 5) return runStepFourChecks(config);
   if (config.step === 4) return runStepFourChecks(config);
   if (config.step === 3) return runStepThreeChecks(config);
   if (config.step === 2) return runStepTwoChecks(config);
@@ -155,7 +156,7 @@ async function runStepFourChecks(config) {
   try {
     const origin = new URL(config.identityProvider.issuer).origin;
     const response = await fetch(
-      origin + '/rest/v1/byteback_notes?select=id&limit=1',
+      config.step >= 5 ? config.originalApiUrl + '?select=id&limit=1' : origin + '/rest/v1/byteback_notes?select=id&limit=1',
       {
         headers: { apikey: 'sb_publishable_bXsYOg9-Xygu4sMUfSj_Fg_YR1oDl3e' },
         redirect: 'error',
