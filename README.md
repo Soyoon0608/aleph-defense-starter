@@ -119,3 +119,15 @@ Supabase Auth 로그인·로그아웃 호출은 유지합니다.
 authenticated 직접 Data API 요청의 개별 시험은 아직 미실행입니다.
 5단계 배포 후 B의 상대 메모 접근 거부는 재확인이 필요합니다.
 이전 공개 커밋과 배포의 노출 이력은 남아 있습니다.
+
+### 5단계 완결성 보완
+
+- 배포 aleph.json에 allowedRoutes를 포함합니다.
+- 첫 화면에 X-Content-Type-Options: nosniff 헤더를 설정합니다.
+- 화면의 Supabase 공개 키와 SDK 연결을 제거했습니다.
+- 로그인·갱신·로그아웃은 /api/auth에서 공식 SDK로 처리합니다.
+- 서버 환경변수 SUPABASE_PUBLISHABLE_KEY가 필요합니다.
+- 메모 API의 로그인·소유자 검사와 DB 권한 제한을 유지합니다.
+- 로그인 세션은 현재 탭의 sessionStorage에 저장합니다.
+- 로컬 빌드와 기존 테스트는 통과했습니다.
+- 새 로그인 흐름과 보안 헤더의 실제 배포 확인은 아직 미실행입니다.

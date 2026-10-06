@@ -207,13 +207,142 @@ item.append(edit, remove);
 
   showNotice('로그인하면 자료를 볼 수 있습니다.');
   try {
-    const { createClient } = await import(
-      'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/+esm'
-    );
-    authClient = createClient(
-      'https://qmscbqyufehupfhombmu.supabase.co',
-      'sb_publishable_bXsYOg9-Xygu4sMUfSj_Fg_YR1oDl3e'
-    );
+
+    // 공개 키 없이 같은 사이트의 서버 로그인 함수만 호출합니다.
+    const storageKey = 'byteback-server-session';
+    let savedSession = null;
+    let refreshFlight = null;
+    let refreshTimer;
+    let authListener = () => {};
+
+    try {
+      savedSession = JSON.parse(sessionStorage.getItem(storageKey) || 'null');
+      if (savedSession &&
+          (typeof savedSession.access_token !== 'string' ||
+           typeof savedSession.refresh_token !== 'string' ||
+           !Number.isFinite(savedSession.expires_at))) {
+        savedSession = null;
+      }
+    } catch {
+      savedSession = null;
+    }
+
+    async function authRequest(input) {
+      const response = await fetch('/api/auth', {
+        method: 'POST',
+        cache: 'no-store',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(input)
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        const error = new Error(result.error || '로그인 요청에 실패했습니다.');
+        error.status = response.status;
+        throw error;
+      }
+      return result.session;
+    }
+
+    function scheduleRefresh() {
+      clearTimeout(refreshTimer);
+      if (!savedSession) return;
+      const delay = Math.max(1000,
+        savedSession.expires_at * 1000 - Date.now() - 60000);
+      refreshTimer = setTimeout(() => {
+        void refreshSession().catch(() => {
+          if (savedSession) {
+            refreshTimer = setTimeout(() => {
+              void refreshSession().catch(() => {});
+            }, 30000);
+          }
+        });
+      }, delay);
+    }
+
+    function saveSession(session) {
+      savedSession = session;
+      try {
+        if (session) sessionStorage.setItem(storageKey, JSON.stringify(session));
+        else sessionStorage.removeItem(storageKey);
+      } catch {
+        // 저장이 불가능해도 현재 창에서는 로그인 상태를 유지합니다.
+      }
+      scheduleRefresh();
+      authListener(session ? 'SIGNED_IN' : 'SIGNED_OUT', session);
+    }
+
+    async function refreshSession() {
+      if (!savedSession) return null;
+      if (!refreshFlight) {
+        refreshFlight = (async () => {
+          try {
+            const session = await authRequest({
+              action: 'refresh',
+              refresh_token: savedSession.refresh_token
+            });
+            saveSession(session);
+            return session;
+          } catch (error) {
+            if (error.status === 401) saveSession(null);
+            throw error;
+          } finally {
+            refreshFlight = null;
+          }
+        })();
+      }
+      return refreshFlight;
+    }
+
+    authClient = {
+      auth: {
+        onAuthStateChange(callback) {
+          authListener = callback;
+        },
+        async getSession() {
+          try {
+            if (savedSession &&
+                savedSession.expires_at * 1000 <= Date.now() + 60000) {
+              await refreshSession();
+            }
+            scheduleRefresh();
+            return { data: { session: savedSession }, error: null };
+          } catch (error) {
+            return { data: { session: null }, error };
+          }
+        },
+        async signInWithPassword(credentials) {
+          try {
+            saveSession(await authRequest({ action: 'login', ...credentials }));
+            return { error: null };
+          } catch (error) {
+            return { error };
+          }
+        },
+        async signOut() {
+          try {
+            clearTimeout(refreshTimer);
+            if (refreshFlight) await refreshFlight;
+            if (savedSession) {
+              await authRequest({
+                action: 'logout',
+                access_token: savedSession.access_token,
+                refresh_token: savedSession.refresh_token
+              });
+            }
+            saveSession(null);
+            return { error: null };
+          } catch (error) {
+            if (error.status === 401) {
+              saveSession(null);
+              return { error: null };
+            }
+            scheduleRefresh();
+            return { error };
+          }
+        }
+      }
+    };
     const updateAuth = (session) => {
       const current = ++generation;
       activeSession = session;
