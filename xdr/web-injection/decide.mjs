@@ -87,7 +87,7 @@ export function decide(alert) {
    */
   if (count >= 8 && level >= 8 &&
       /명령 구분자|주입|표기|표식/.test(description)) {
-    return result(0.65, 'SQL 구문 주입');
+    return result(0.90, 'SQL 구문 주입');
   }
 
   /*
