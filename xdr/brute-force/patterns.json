@@ -1,0 +1,23 @@
+{
+  "thresholdNote": "숫자와 확신도 기준은 학습용 운영 기준이며 MITRE가 정한 수치가 아닙니다.",
+  "patterns": [
+    {
+      "name": "repeated_password_guessing",
+      "condition": "같은 주소 또는 계정의 인증 실패가 반복됨. 실패 30건 이상이며 짧은 시간·연속 시도·비밀번호 변형 중 하나가 확인되면 강한 신호로 판단.",
+      "evidence": "MITRE T1110 및 T1110.001: 비밀번호를 반복적으로 추측하여 계정 접근을 시도하는 형태.",
+      "source": "https://attack.mitre.org/techniques/T1110/001/"
+    },
+    {
+      "name": "password_spraying",
+      "condition": "여러 계정에 같은 비밀번호를 반복 대입하거나, 다수 계정에 일정한 간격의 인증 실패가 확인됨. 계정 수와 반복성을 함께 확인.",
+      "evidence": "MITRE T1110.003: 하나 또는 소수의 비밀번호를 여러 계정에 대입하는 형태. 일정한 간격만으로 같은 비밀번호 사용을 단정하지 않음.",
+      "source": "https://attack.mitre.org/techniques/T1110/003/"
+    },
+    {
+      "name": "limited_failure_review",
+      "condition": "인증 실패가 3건 이상이지만 대량 반복·다수 계정 대입의 근거가 부족함. 이후 성공했더라도 자동 차단하지 않고 검토 알림으로 분류.",
+      "evidence": "MITRE T1110의 반복 인증 실패 탐지에 근거한 검토 조건. 소수 실패만으로 공격을 확정하지 않음.",
+      "source": "https://attack.mitre.org/techniques/T1110/"
+    }
+  ]
+}
