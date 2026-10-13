@@ -3,7 +3,6 @@ import { createClient } from '@supabase/supabase-js';
 import { createRemoteJWKSet, decodeJwt, jwtVerify } from 'jose';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
-const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 const BEARER = /^Bearer ([A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)$/u;
 
 function httpsUrl(value, path) {
@@ -69,7 +68,7 @@ export function createLoginVerifier({ config, supabaseSecretKey, judgeKeySet,
           maxTokenAge: '15 minutes', clockTolerance: 5,
         });
         if (protectedHeader.alg !== 'ES256'
-            || !UUID_V4.test(payload.sub ?? '') || !UUID_V4.test(payload.aleph_run ?? '')
+            || !UUID.test(payload.sub ?? '') || !UUID.test(payload.aleph_run ?? '')
             || payload.aleph_role !== 'judge'
             || !['a', 'b'].includes(payload.aleph_identity)
             || !Number.isSafeInteger(payload.iat) || !Number.isSafeInteger(payload.exp)
