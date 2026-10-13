@@ -1,7 +1,11 @@
 // ALEPH SDP 엔진이 확인한 요청만 받는 학생 판정기 시작점입니다.
 // 6단계에서 등록된 기기만 허용합니다.
 // 요청 본문의 userId, role, 기기 키, 토큰을 별도로 믿거나 저장하지 마세요.
-export const RULE_IDS = Object.freeze(['device_registered', 'step_up_required']);
+import { identifyResource } from './resource-identity.mjs';
+
+export const RULE_IDS = Object.freeze([
+  'device_registered', 'step_up_required', 'resource_zone'
+]);
 
 function validateRequestContext(request) {
   const signals = request?.signals;
@@ -26,6 +30,10 @@ function validateRequestContext(request) {
 export async function decide(request) {
   validateRequestContext(request);
   const deviceRegistered = request.deviceRegistered === true;
+  const resource = identifyResource(request);
+  const unknownResource = resource === null;
+  const forbiddenResource = resource?.resourceType === 'instructor-announcement'
+    && resource.operation === 'update';
   const unusualTime = request.signals.hour < 6 || request.signals.hour >= 22;
   const unfamiliarNetwork = request.signals.network === 'unusual';
   const recentReadBurst = request.recentEvents.some(event => event.kind === 'risk_signal'
@@ -34,15 +42,21 @@ export async function decide(request) {
   const stepUpVerified = request.stepUp?.verified === true
     && Number.isInteger(request.stepUp.authAgeSeconds)
     && request.stepUp.authAgeSeconds >= 0 && request.stepUp.authAgeSeconds <= 900;
-  const needsStepUp = deviceRegistered && compositeAnomaly && !stepUpVerified;
+  const needsStepUp = deviceRegistered && !unknownResource && !forbiddenResource
+    && compositeAnomaly && !stepUpVerified;
+  const deniedByResource = unknownResource || forbiddenResource;
 
   return {
     schema: 'aleph.decision.v1',
     requestId: request.requestId,
-    decision: !deviceRegistered ? 'deny' : needsStepUp ? 'step_up' : 'allow',
+    decision: !deviceRegistered || deniedByResource ? 'deny'
+      : needsStepUp ? 'step_up' : 'allow',
     reasonCode: !deviceRegistered ? 'device_not_registered'
+      : unknownResource ? 'resource_unknown'
+      : forbiddenResource ? 'resource_forbidden'
       : needsStepUp ? 'step_up_required' : 'approved',
     ruleIds: !deviceRegistered ? [RULE_IDS[0]]
+      : deniedByResource ? [RULE_IDS[2]]
       : needsStepUp ? [RULE_IDS[1]] : [RULE_IDS[0]],
   };
 }

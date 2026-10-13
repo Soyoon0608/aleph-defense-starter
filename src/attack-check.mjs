@@ -1,6 +1,7 @@
 // The student changes this check as each stage adds an attack to the same app.
 // Never return tokens, private keys, real names, or note bodies.
 export async function runAttackChecks(config) {
+  if (config.step === 8) return runStepEightChecks(config);
   if (config.step === 7) return runStepSevenChecks();
   if (config.step === 6) return runStepSixChecks();
   if (config.step === 5) return runStepFourChecks(config);
@@ -277,5 +278,116 @@ async function runStepSevenChecks() {
       observed: `가상 판정 결과: ${response.decision}/${response.reasonCode}`
     });
   }
+  return results;
+}
+
+async function runStepEightChecks(config) {
+  const [{ fixtureRequests }, { decide, RULE_IDS }, { identifyResource }, { handleNotes }] = await Promise.all([
+    import('../scripts/fixture-7.mjs'),
+    import('./decider.mjs'),
+    import('./resource-identity.mjs'),
+    import('./notes-api.mjs')
+  ]);
+  for (const ruleId of ['device_registered', 'step_up_required', 'resource_zone']) {
+    if (!RULE_IDS.includes(ruleId)) throw new Error(`8단계 규칙 ${ruleId}가 없습니다.`);
+  }
+
+  const { normal } = fixtureRequests();
+  const noteId = '00000000-0000-4000-8000-000000000001';
+  const rows = [{
+    id: noteId, owner_id: 'fixture-owner-a', title: '가상 메모', content: '가상 본문'
+  }];
+  const createClient = () => ({
+    from(table) {
+      if (table !== 'byteback_notes') throw new Error('예상하지 않은 자료 테이블입니다.');
+      const filters = [];
+      let update = null;
+      return {
+        select() { return this; },
+        update(values) { update = values; return this; },
+        eq(field, value) { filters.push([field, value]); return this; },
+        async maybeSingle() {
+          const row = rows.find(item => filters.every(([field, value]) => item[field] === value));
+          if (!row) return { data: null, error: null };
+          if (update) Object.assign(row, update);
+          return { data: update ? { id: row.id } : row, error: null };
+        }
+      };
+    }
+  });
+  const callApi = async (userId, method, body) => {
+    const response = {
+      statusCode: 200,
+      setHeader() {},
+      status(code) { this.statusCode = code; return this; },
+      json(value) { this.body = value; return this; }
+    };
+    await handleNotes({ method, headers: {}, query: { id: noteId }, body }, response, true, {
+      supabaseUrl: new URL(config.identityProvider.issuer).origin,
+      verifyLogin: async () => ({ userId }),
+      createClient
+    });
+    return response;
+  };
+  const results = [];
+  const checkDecision = async (attackId, expected, request, decision, reasonCode) => {
+    const resource = identifyResource(request);
+    const response = await decide(request);
+    const resourceMatches = reasonCode === 'resource_unknown'
+      ? resource === null : resource !== null;
+    if (!resourceMatches || response.decision !== decision || response.reasonCode !== reasonCode) {
+      throw new Error(`8단계 판정 점검 실패: ${attackId}`);
+    }
+    results.push({ attackId, expected, observed: `가상 판정: ${response.decision}/${response.reasonCode}` });
+  };
+
+  const selfRead = {
+    ...normal, method: 'GET', path: `/notes/${noteId}`, route: 'GET /notes/:id'
+  };
+  const selfReadApi = await callApi('fixture-owner-a', 'GET');
+  await checkDecision('self_note_read', '자기 메모 읽기 허용', selfRead, 'allow', 'approved');
+  if (selfReadApi.statusCode !== 200) throw new Error('자기 메모 API 읽기 점검 실패.');
+  results.push({ attackId: 'self_note_api_read', expected: '검증된 소유자의 GET 허용',
+    observed: `가상 API 응답: HTTP ${selfReadApi.statusCode}` });
+
+  const selfUpdate = {
+    ...normal, method: 'PUT', path: `/notes/${noteId}`, route: 'PUT /notes/:id'
+  };
+  const selfUpdateApi = await callApi('fixture-owner-a', 'PUT', { title: '가상 메모', body: '수정된 가상 본문' });
+  await checkDecision('self_note_update', '자기 메모 수정 허용', selfUpdate, 'allow', 'approved');
+  if (selfUpdateApi.statusCode !== 200) throw new Error('자기 메모 API 수정 점검 실패.');
+  results.push({ attackId: 'self_note_api_update', expected: '검증된 소유자의 PUT 허용',
+    observed: `가상 API 응답: HTTP ${selfUpdateApi.statusCode}` });
+
+  const crossReadApi = await callApi('fixture-owner-b', 'GET');
+  if (crossReadApi.statusCode !== 404) throw new Error('다른 사용자의 메모 API 읽기가 거부되지 않았습니다.');
+  results.push({ attackId: 'cross_note_api_read', expected: '다른 사용자의 메모 GET 거부',
+    observed: `가상 API 응답: HTTP ${crossReadApi.statusCode}` });
+
+  const crossUpdateApi = await callApi('fixture-owner-b', 'PUT', { title: '가짜 수정', body: '가짜 본문' });
+  if (crossUpdateApi.statusCode !== 404 || rows[0].content !== '수정된 가상 본문') {
+    throw new Error('다른 사용자의 메모 API 수정이 거부되지 않았습니다.');
+  }
+  results.push({ attackId: 'cross_note_api_update', expected: '다른 사용자의 메모 PUT 거부',
+    observed: `가상 API 응답: HTTP ${crossUpdateApi.statusCode}; 소유자 자료 유지` });
+
+  const forgedRoleApi = await callApi('fixture-owner-a', 'PUT', {
+    title: '가짜 강사 수정', body: '가짜 본문', role: 'teacher'
+  });
+  if (forgedRoleApi.statusCode !== 400 || rows[0].content !== '수정된 가상 본문') {
+    throw new Error('요청 본문의 role이 자료 수정 권한으로 사용됐습니다.');
+  }
+  results.push({ attackId: 'body_role_rejected', expected: '요청 본문의 role은 권한 근거가 아님',
+    observed: `가상 API 응답: HTTP ${forgedRoleApi.statusCode}` });
+
+  await checkDecision('student_announcement_update', '강사 공지 수정 거부', {
+    ...normal, service: 'announcements', method: 'PUT', path: '/announcements/demo',
+    route: 'PUT /announcements/:id'
+  }, 'deny', 'resource_forbidden');
+  await checkDecision('unknown_resource_path', '알 수 없는 경로 거부', {
+    ...normal, method: 'GET', path: `/notes/${noteId}/export`,
+    route: 'GET /notes/:id/export'
+  }, 'deny', 'resource_unknown');
+
   return results;
 }

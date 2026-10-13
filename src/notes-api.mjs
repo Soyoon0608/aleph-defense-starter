@@ -6,17 +6,29 @@ import config from '../aleph.config.json' with { type: 'json' };
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
 let verifier;
 
-export async function handleNotes(req, res, single = false) {
+export function scopeOwnedNote(query, id, ownerId) {
+  return query.eq('id', id).eq('owner_id', ownerId);
+}
+
+export async function handleNotes(req, res, single = false, dependencies = {}) {
   res.setHeader('Cache-Control', 'no-store');
-  const url = process.env.SUPABASE_URL;
+  const injectedDependencies = typeof dependencies.verifyLogin === 'function'
+    && typeof dependencies.createClient === 'function';
+  const url = dependencies.supabaseUrl ?? process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SECRET_KEY;
-  if (!url || !key || url !== new URL(config.identityProvider.issuer).origin) {
+  if (!url || (!key && !injectedDependencies)
+      || url !== new URL(config.identityProvider.issuer).origin) {
     return res.status(500).json({ error: '자료 서버 설정을 확인해 주세요.' });
   }
 
   try {
-    verifier ??= createLoginVerifier({ config, supabaseSecretKey: key });
-    const login = await verifier(req.headers.authorization);
+    let login;
+    if (injectedDependencies) {
+      login = await dependencies.verifyLogin(req.headers.authorization);
+    } else {
+      verifier ??= createLoginVerifier({ config, supabaseSecretKey: key });
+      login = await verifier(req.headers.authorization);
+    }
     if (!login) return res.status(401).json({ error: '로그인이 필요합니다.' });
 
     const allowed = single ? ['GET', 'PUT', 'DELETE'] : ['GET', 'POST'];
@@ -50,7 +62,8 @@ export async function handleNotes(req, res, single = false) {
       }
     }
 
-    const db = createClient(url, key, {
+    const client = injectedDependencies ? dependencies.createClient : createClient;
+    const db = client(url, key, {
       auth: { persistSession: false, autoRefreshToken: false }
     });
 
@@ -80,8 +93,8 @@ export async function handleNotes(req, res, single = false) {
 
     // 4단계: 검증된 사용자 ID와 소유자가 일치하는 행만 처리합니다.
     if (req.method === 'GET') {
-      const { data, error } = await db.from('byteback_notes')
-        .select('id, title, content').eq('id', id).eq('owner_id', login.userId).maybeSingle();
+      const { data, error } = await scopeOwnedNote(db.from('byteback_notes')
+        .select('id, title, content'), id, login.userId).maybeSingle();
       if (error) throw error;
       if (!data) return res.status(404).json({ error: '메모가 없습니다.' });
       return res.status(200).json({
@@ -90,16 +103,16 @@ export async function handleNotes(req, res, single = false) {
     }
 
     if (req.method === 'PUT') {
-      const { data, error } = await db.from('byteback_notes')
-        .update({ title: input.title.trim(), content: input.body })
-        .eq('id', id).eq('owner_id', login.userId).select('id').maybeSingle();
+      const { data, error } = await scopeOwnedNote(db.from('byteback_notes')
+        .update({ title: input.title.trim(), content: input.body }), id, login.userId)
+        .select('id').maybeSingle();
       if (error) throw error;
       if (!data) return res.status(404).json({ error: '메모가 없습니다.' });
       return res.status(200).json({ id: data.id });
     }
 
-    const { data, error } = await db.from('byteback_notes')
-      .delete().eq('id', id).eq('owner_id', login.userId).select('id').maybeSingle();
+    const { data, error } = await scopeOwnedNote(db.from('byteback_notes').delete(),
+      id, login.userId).select('id').maybeSingle();
     if (error) throw error;
     if (!data) return res.status(404).json({ error: '메모가 없습니다.' });
     return res.status(200).json({ id: data.id });
