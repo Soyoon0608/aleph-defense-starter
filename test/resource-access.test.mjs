@@ -8,7 +8,7 @@ import { identifyResource } from '../src/resource-identity.mjs';
 import { runAttackChecks } from '../src/attack-check.mjs';
 import config from '../aleph.config.json' with { type: 'json' };
 
-function fakeNoteQuery(rows) {
+function fakeNoteQuery(rows, ignoreOwnerFilter = false) {
   const filters = [];
   let update = null;
   return {
@@ -24,19 +24,25 @@ function fakeNoteQuery(rows) {
       return this;
     },
     async maybeSingle() {
-      const row = rows.find(item => filters.every(([field, value]) => item[field] === value));
+      const row = rows.find(item => filters.every(([field, value]) =>
+        (ignoreOwnerFilter && field === 'owner_id') || item[field] === value));
       if (!row) return { data: null, error: null };
       if (update) Object.assign(row, update);
       return { data: update ? { id: row.id } : row, error: null };
+    },
+    async order() {
+      const data = rows.filter(item => filters.every(([field, value]) =>
+        (ignoreOwnerFilter && field === 'owner_id') || item[field] === value));
+      return { data, error: null };
     }
   };
 }
 
-function fakeNotesClient(rows) {
+function fakeNotesClient(rows, ignoreOwnerFilter = false) {
   return {
     from(table) {
       assert.equal(table, 'byteback_notes');
-      return fakeNoteQuery(rows);
+      return fakeNoteQuery(rows, ignoreOwnerFilter);
     }
   };
 }
@@ -50,17 +56,17 @@ function fakeResponse() {
   };
 }
 
-async function callNotesApi({ rows, userId, method, body }) {
+async function callNotesApi({ rows, userId, method, body, single = true, ignoreOwnerFilter = false }) {
   const response = fakeResponse();
   await handleNotes({
     method,
     headers: {},
-    query: { id: '00000000-0000-4000-8000-000000000001' },
+    query: single ? { id: '00000000-0000-4000-8000-000000000001' } : {},
     body
-  }, response, true, {
+  }, response, single, {
     supabaseUrl: new URL(config.identityProvider.issuer).origin,
     verifyLogin: async () => ({ userId }),
-    createClient: () => fakeNotesClient(rows)
+    createClient: () => fakeNotesClient(rows, ignoreOwnerFilter)
   });
   return response;
 }
@@ -97,6 +103,10 @@ test('direct notes API returns A note to A and denies B read and update', async 
   const bRead = await callNotesApi({ rows, userId: 'auth-user-b', method: 'GET' });
   assert.equal(bRead.statusCode, 404);
 
+  const bReadFromUnfilteredQuery = await callNotesApi({ rows, userId: 'auth-user-b',
+    method: 'GET', ignoreOwnerFilter: true });
+  assert.equal(bReadFromUnfilteredQuery.statusCode, 404);
+
   const bUpdate = await callNotesApi({ rows, userId: 'auth-user-b', method: 'PUT',
     body: { title: 'Changed by B', body: 'Unauthorized change' } });
   assert.equal(bUpdate.statusCode, 404);
@@ -106,6 +116,20 @@ test('direct notes API returns A note to A and denies B read and update', async 
     body: { title: 'Changed by A', body: 'Authorized change' } });
   assert.equal(aUpdate.statusCode, 200);
   assert.equal(rows[0].content, 'Authorized change');
+});
+
+test('notes API list remains scoped to the verified owner', async () => {
+  const rows = [
+    { id: 'note-a', owner_id: 'auth-user-a', title: 'A note', content: 'A body' },
+    { id: 'note-b', owner_id: 'auth-user-b', title: 'B note', content: 'B body' }
+  ];
+  const aList = await callNotesApi({ rows, userId: 'auth-user-a', method: 'GET', single: false });
+  const bList = await callNotesApi({ rows, userId: 'auth-user-b', method: 'GET', single: false });
+
+  assert.equal(aList.statusCode, 200);
+  assert.deepEqual(aList.body.map(note => note.id), ['note-a']);
+  assert.equal(bList.statusCode, 200);
+  assert.deepEqual(bList.body.map(note => note.id), ['note-b']);
 });
 
 test('notes API rejects a body role instead of treating it as instructor authority', async () => {

@@ -94,9 +94,11 @@ export async function handleNotes(req, res, single = false, dependencies = {}) {
     // 4단계: 검증된 사용자 ID와 소유자가 일치하는 행만 처리합니다.
     if (req.method === 'GET') {
       const { data, error } = await scopeOwnedNote(db.from('byteback_notes')
-        .select('id, title, content'), id, login.userId).maybeSingle();
+        .select('id, title, content, owner_id'), id, login.userId).maybeSingle();
       if (error) throw error;
-      if (!data) return res.status(404).json({ error: '메모가 없습니다.' });
+      if (!data || data.owner_id !== login.userId) {
+        return res.status(404).json({ error: '메모가 없습니다.' });
+      }
       return res.status(200).json({
         id: data.id, title: data.title, body: data.content
       });
