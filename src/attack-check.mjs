@@ -581,7 +581,7 @@ async function runStepTenChecks(config) {
   results.push({
     attackId: 'safe_policy_backup_verified',
     expected: '검증된 9단계 안전 정책 사본의 해시가 일치',
-    observed: `로컬 사본 검증: verified/version-${verified.version}`
+    observed: `로컬 사본 검증: 최초 검증 후 파일 재읽기·재검증/version-${rereadVerified.version}`
   });
 
   // 실행 전에 바뀔 정책 항목을 확인합니다.
