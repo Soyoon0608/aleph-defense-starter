@@ -314,3 +314,24 @@ test('announcement reads are allowed and announcement writes are denied by resou
     assert.deepEqual(response.ruleIds, ['resource_zone'], method);
   }
 });
+
+test('announcement collection writes are denied by the resource zone', async () => {
+  const { normal } = fixtureRequests();
+
+  for (const prefix of ['', '/api']) {
+    for (const method of ['POST', 'PUT', 'PATCH', 'DELETE']) {
+      const response = await decide({
+        ...normal,
+        service: 'announcements',
+        method,
+        path: `${prefix}/announcements`,
+        route: `${method} ${prefix}/announcements`,
+        queryLength: 0
+      });
+
+      assert.equal(response.decision, 'deny', `${method} ${prefix}/announcements`);
+      assert.equal(response.reasonCode, 'resource_forbidden');
+      assert.deepEqual(response.ruleIds, ['resource_zone']);
+    }
+  }
+});

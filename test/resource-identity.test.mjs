@@ -76,3 +76,21 @@ test('identifies announcement reads and writes as the announcement resource zone
     });
   }
 });
+
+test('identifies announcement collection writes as the instructor announcement zone', () => {
+  for (const prefix of ['', '/api']) {
+    for (const method of ['POST', 'PUT', 'PATCH', 'DELETE']) {
+      assert.deepEqual(identifyResource({
+        service: 'announcements',
+        method,
+        route: `${method} ${prefix}/announcements`,
+        path: `${prefix}/announcements`,
+        queryLength: 0
+      }), {
+        resourceType: 'instructor-announcement',
+        resourceId: 'instructor-announcements',
+        operation: 'write'
+      });
+    }
+  }
+});

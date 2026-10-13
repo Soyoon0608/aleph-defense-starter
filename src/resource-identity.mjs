@@ -49,6 +49,33 @@ const resources = Object.freeze([
       DELETE: 'write'
     })
   }
+,
+  {
+    service: 'announcements',
+    resourceType: 'instructor-announcement',
+    resourceId: 'instructor-announcements',
+    route: '/announcements',
+    path: /^\/announcements$/u,
+    operations: Object.freeze({
+      POST: 'write',
+      PUT: 'write',
+      PATCH: 'write',
+      DELETE: 'write'
+    })
+  },
+  {
+    service: 'announcements',
+    resourceType: 'instructor-announcement',
+    resourceId: 'instructor-announcements',
+    route: '/api/announcements',
+    path: /^\/api\/announcements$/u,
+    operations: Object.freeze({
+      POST: 'write',
+      PUT: 'write',
+      PATCH: 'write',
+      DELETE: 'write'
+    })
+  }
 ]);
 
 const reservedIds = new Set(['all', 'export']);
@@ -69,13 +96,24 @@ export function identifyResource(request) {
 
     const match = resource.path.exec(request.path);
 
-    if (!match || reservedIds.has(match[1].toLowerCase())) {
+    if (!match) {
+      continue;
+    }
+
+    const dynamicId = match[1] ?? null;
+    const resourceId = resource.resourceId ?? dynamicId;
+
+    if (dynamicId && reservedIds.has(dynamicId.toLowerCase())) {
+      continue;
+    }
+
+    if (typeof resourceId !== 'string' || !resourceId) {
       continue;
     }
 
     return {
       resourceType: resource.resourceType,
-      resourceId: match[1],
+      resourceId,
       operation
     };
   }
