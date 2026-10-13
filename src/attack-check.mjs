@@ -1,6 +1,7 @@
 // The student changes this check as each stage adds an attack to the same app.
 // Never return tokens, private keys, real names, or note bodies.
 export async function runAttackChecks(config) {
+  if (config.step === 7) return runStepSevenChecks();
   if (config.step === 6) return runStepSixChecks();
   if (config.step === 5) return runStepFourChecks(config);
   if (config.step === 4) return runStepFourChecks(config);
@@ -219,4 +220,62 @@ async function runStepSixChecks() {
       observed: `가상 판정 요청 결과: ${unregisteredResponse.decision}/${unregisteredResponse.reasonCode}`
     }
   ];
+}
+
+async function runStepSevenChecks() {
+  const [{ fixtureRequests }, { decide, RULE_IDS }] = await Promise.all([
+    import('../scripts/fixture-7.mjs'),
+    import('./decider.mjs')
+  ]);
+  if (!RULE_IDS.includes('device_registered') || !RULE_IDS.includes('step_up_required')) {
+    throw new Error('7단계 device_registered와 step_up_required 규칙을 먼저 구현해 주세요.');
+  }
+
+  const { normal, suspicious } = fixtureRequests();
+  const checks = [
+    {
+      attackId: 'registered_device_normal',
+      request: normal,
+      decision: 'allow',
+      reasonCode: 'approved',
+      expected: '등록 기기의 정상 요청은 allow'
+    },
+    {
+      attackId: 'unregistered_device_denied',
+      request: { ...normal, deviceRegistered: false },
+      decision: 'deny',
+      reasonCode: 'device_not_registered',
+      expected: '미등록 기기 요청은 deny'
+    },
+    {
+      attackId: 'composite_anomaly_step_up',
+      request: suspicious,
+      decision: 'step_up',
+      reasonCode: 'step_up_required',
+      expected: '복합 이상 가상 사건은 step_up'
+    },
+    {
+      attackId: 'step_up_verified_allow',
+      request: {
+        ...suspicious,
+        stepUp: { verified: true, authAgeSeconds: 60 }
+      },
+      decision: 'allow',
+      reasonCode: 'approved',
+      expected: '가상 추가 인증 확인 후 요청 재판정은 allow'
+    }
+  ];
+  const results = [];
+  for (const check of checks) {
+    const response = await decide(check.request);
+    if (response.decision !== check.decision || response.reasonCode !== check.reasonCode) {
+      throw new Error(`7단계 가상 점검 실패: ${check.attackId}`);
+    }
+    results.push({
+      attackId: check.attackId,
+      expected: check.expected,
+      observed: `가상 판정 결과: ${response.decision}/${response.reasonCode}`
+    });
+  }
+  return results;
 }
