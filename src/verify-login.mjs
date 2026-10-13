@@ -68,7 +68,7 @@ export function createLoginVerifier({ config, supabaseSecretKey, judgeKeySet,
           issuer: bound.judgeIssuer, audience: bound.audience, algorithms: ['ES256'],
           maxTokenAge: '15 minutes', clockTolerance: 5,
         });
-        if (protectedHeader.alg !== 'ES256' || payload.aud !== bound.audience
+        if (protectedHeader.alg !== 'ES256'
             || !UUID_V4.test(payload.sub ?? '') || !UUID_V4.test(payload.aleph_run ?? '')
             || payload.aleph_role !== 'judge'
             || !['a', 'b'].includes(payload.aleph_identity)
