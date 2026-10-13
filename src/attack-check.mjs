@@ -537,12 +537,16 @@ async function runStepTenChecks(config) {
     noteBindingDigest
   } = await import('./restore-api.mjs');
 
-  const policyBackup = JSON.parse(
-    await readFile(
-      new URL('../backups/policy.safe.json', import.meta.url),
-      'utf8'
-    )
-  );
+  const policyBackupUrl =
+    new URL('../backups/policy.safe.json', import.meta.url);
+
+  async function readPolicyBackup() {
+    return JSON.parse(
+      await readFile(policyBackupUrl, 'utf8')
+    );
+  }
+
+  const policyBackup = await readPolicyBackup();
 
   const safeManifest = JSON.parse(
     await readFile(
@@ -560,14 +564,28 @@ async function runStepTenChecks(config) {
     throw new Error('10단계 안전 정책 사본을 검증하지 못했습니다.');
   }
 
+
+
+  // 2. 복원 직전에 정책 사본을 파일에서 다시 읽어 재검증합니다.
+  const rereadPolicyBackup = await readPolicyBackup();
+  const rereadVerified =
+    verifySafePolicyBackup(rereadPolicyBackup);
+
+  if (rereadVerified.version !== verified.version
+      || rereadVerified.sha256 !== verified.sha256) {
+    throw new Error(
+      '10단계 다시 읽은 정책 사본이 처음 검증한 사본과 다릅니다.'
+    );
+  }
+
   results.push({
     attackId: 'safe_policy_backup_verified',
     expected: '검증된 9단계 안전 정책 사본의 해시가 일치',
     observed: `로컬 사본 검증: verified/version-${verified.version}`
   });
 
-  // 2. 실행 전에 바뀔 정책 항목을 확인합니다.
-  const currentPolicy = structuredClone(verified.policy);
+  // 실행 전에 바뀔 정책 항목을 확인합니다.
+  const currentPolicy = structuredClone(rereadVerified.policy);
   currentPolicy.zones.notes.crossOwner = 'allow';
   currentPolicy.otherServices = {
     fixtureService: { access: 'preserve' }
@@ -578,7 +596,7 @@ async function runStepTenChecks(config) {
 
   const preview = previewPolicyRestore(
     currentPolicy,
-    policyBackup
+    rereadPolicyBackup
   );
 
   if (preview.changes.length !== 1
@@ -597,7 +615,7 @@ async function runStepTenChecks(config) {
   // 3. 검증한 정책만 복원하고 다른 서비스와 감사 이력을 보존합니다.
   const restoredPolicy = restoreTestPolicy(
     currentPolicy,
-    policyBackup,
+    rereadPolicyBackup,
     preview.changes
   );
 
@@ -684,7 +702,8 @@ async function runStepTenChecks(config) {
                   filters.every(([field, value]) =>
                     row[field] === value
                   )
-                ).slice(0, count),
+                ).slice(0, count)
+                .map((row) => structuredClone(row)),
                 error: null
               };
             }
