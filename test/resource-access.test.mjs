@@ -310,7 +310,7 @@ test('announcement reads are allowed and announcement writes are denied by resou
     });
 
     assert.equal(response.decision, 'deny', method);
-    assert.equal(response.reasonCode, 'resource_forbidden', method);
+    assert.equal(response.reasonCode, 'announcement_write_denied', method);
     assert.deepEqual(response.ruleIds, ['resource_zone'], method);
   }
 });
@@ -330,7 +330,28 @@ test('announcement collection writes are denied by the resource zone', async () 
       });
 
       assert.equal(response.decision, 'deny', `${method} ${prefix}/announcements`);
-      assert.equal(response.reasonCode, 'resource_forbidden');
+      assert.equal(response.reasonCode, 'announcement_write_denied');
+      assert.deepEqual(response.ruleIds, ['resource_zone']);
+    }
+  }
+});
+
+test('all instructor material access is denied by the resource zone', async () => {
+  const { normal } = fixtureRequests();
+
+  for (const prefix of ['', '/api']) {
+    for (const method of ['GET', 'POST', 'PUT', 'PATCH', 'DELETE']) {
+      const response = await decide({
+        ...normal,
+        service: 'materials',
+        method,
+        path: `${prefix}/materials/material-a`,
+        route: `${method} ${prefix}/materials/:id`,
+        queryLength: 0
+      });
+
+      assert.equal(response.decision, 'deny', `${method} ${prefix}/materials/material-a`);
+      assert.equal(response.reasonCode, 'instructor_material_denied');
       assert.deepEqual(response.ruleIds, ['resource_zone']);
     }
   }

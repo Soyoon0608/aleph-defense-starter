@@ -44,8 +44,14 @@ export async function decide(request) {
     && compositeAnomaly && !stepUpVerified;
   // 8단계 자원 구역 정책:
   // 공지는 읽기만 허용하고 쓰기는 resource_zone 규칙으로 명시적으로 거부합니다.
-  const deniedByZone = resource?.resourceType === 'instructor-announcement'
+  const announcementWriteDenied =
+    resource?.resourceType === 'instructor-announcement'
     && resource.operation !== 'read';
+
+  const instructorMaterialDenied =
+    resource?.resourceType === 'instructor-material';
+
+  const deniedByZone = announcementWriteDenied || instructorMaterialDenied;
   const deniedByResource = unknownResource || deniedByZone;
 
   return {
@@ -55,7 +61,8 @@ export async function decide(request) {
       : needsStepUp ? 'step_up' : 'allow',
     reasonCode: !deviceRegistered ? 'device_not_registered'
       : unknownResource ? 'resource_unknown'
-      : deniedByZone ? 'resource_forbidden'
+      : announcementWriteDenied ? 'announcement_write_denied'
+      : instructorMaterialDenied ? 'instructor_material_denied'
       : needsStepUp ? 'step_up_required' : 'approved',
     ruleIds: !deviceRegistered ? [RULE_IDS[0]]
       : deniedByResource ? [RULE_IDS[2]]

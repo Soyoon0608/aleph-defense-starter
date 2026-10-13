@@ -75,6 +75,32 @@ const resources = Object.freeze([
       PATCH: 'write',
       DELETE: 'write'
     })
+  },
+  {
+    service: 'materials',
+    resourceType: 'instructor-material',
+    route: '/materials/:id',
+    path: /^\/materials\/([^/?#]+)$/u,
+    operations: Object.freeze({
+      GET: 'read',
+      POST: 'write',
+      PUT: 'write',
+      PATCH: 'write',
+      DELETE: 'write'
+    })
+  },
+  {
+    service: 'materials',
+    resourceType: 'instructor-material',
+    route: '/api/materials/:id',
+    path: /^\/api\/materials\/([^/?#]+)$/u,
+    operations: Object.freeze({
+      GET: 'read',
+      POST: 'write',
+      PUT: 'write',
+      PATCH: 'write',
+      DELETE: 'write'
+    })
   }
 ]);
 

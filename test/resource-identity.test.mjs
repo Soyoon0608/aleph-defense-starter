@@ -94,3 +94,27 @@ test('identifies announcement collection writes as the instructor announcement z
     }
   }
 });
+
+test('identifies instructor materials as a separate resource zone', () => {
+  for (const prefix of ['', '/api']) {
+    for (const [method, operation] of [
+      ['GET', 'read'],
+      ['POST', 'write'],
+      ['PUT', 'write'],
+      ['PATCH', 'write'],
+      ['DELETE', 'write']
+    ]) {
+      assert.deepEqual(identifyResource({
+        service: 'materials',
+        method,
+        route: `${method} ${prefix}/materials/:id`,
+        path: `${prefix}/materials/material-a`,
+        queryLength: 0
+      }), {
+        resourceType: 'instructor-material',
+        resourceId: 'material-a',
+        operation
+      });
+    }
+  }
+});
