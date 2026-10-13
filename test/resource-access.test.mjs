@@ -221,29 +221,50 @@ test('8-stage bundle check covers the virtual resource-zone cases', async () => 
     'cross_note_api_read',
     'cross_note_api_update',
     'body_role_rejected',
-    'student_announcement_update',
-    'unknown_resource_path'
+    'note_collection_read_denied',
+    'note_collection_create_denied',
+    'announcement_post_denied',
+    'announcement_put_denied',
+    'announcement_patch_denied',
+    'announcement_delete_denied',
+    'announcement_collection_post_denied',
+    'unknown_resource_path',
+    'resource_route_mismatch'
   ]);
 });
 
-test('denies student announcement updates and unknown resource paths', async () => {
+test('denies note collections, announcement writes, and unknown resource tuples', async () => {
   const normal = fixtureRequests().normal;
-  const announcementUpdate = await decide({
-    ...normal,
-    service: 'announcements',
-    method: 'PUT',
-    path: '/announcements/notice-a',
-    route: 'PUT /announcements/:id'
-  });
-  assert.equal(announcementUpdate.decision, 'deny');
-  assert.equal(announcementUpdate.reasonCode, 'resource_forbidden');
+  for (const method of ['GET', 'POST']) {
+    const collection = await decide({
+      ...normal, method, path: '/notes', route: `${method} /notes`
+    });
+    assert.equal(collection.decision, 'deny');
+    assert.equal(collection.reasonCode, 'resource_unknown');
+  }
 
-  const unknownPath = await decide({
-    ...normal,
-    method: 'GET',
-    path: '/notes/note-a/export',
-    route: 'GET /notes/:id/export'
+  const announcementRead = await decide({
+    ...normal, service: 'announcements', method: 'GET',
+    path: '/announcements/notice-a', route: 'GET /announcements/:id'
   });
-  assert.equal(unknownPath.decision, 'deny');
-  assert.equal(unknownPath.reasonCode, 'resource_unknown');
+  assert.equal(announcementRead.decision, 'allow');
+
+  for (const method of ['POST', 'PUT', 'PATCH', 'DELETE']) {
+    const announcementWrite = await decide({
+      ...normal, service: 'announcements', method,
+      path: '/announcements/notice-a', route: `${method} /announcements/:id`
+    });
+    assert.equal(announcementWrite.decision, 'deny');
+    assert.equal(announcementWrite.reasonCode, 'resource_forbidden');
+  }
+
+  for (const request of [
+    { ...normal, method: 'GET', path: '/notes/note-a/export',
+      route: 'GET /notes/:id/export' },
+    { ...normal, method: 'GET', path: '/notes/note-a', route: 'GET /notes/:other' }
+  ]) {
+    const response = await decide(request);
+    assert.equal(response.decision, 'deny');
+    assert.equal(response.reasonCode, 'resource_unknown');
+  }
 });

@@ -1,27 +1,29 @@
 const resources = Object.freeze([
   {
     service: 'notes',
-    route: '/notes',
-    path: /^\/notes$/u,
-    resourceId: 'student-notes',
-    resourceType: 'student-note-collection',
-    operations: Object.freeze({ GET: 'list', POST: 'create' })
-  },
-  {
-    service: 'notes',
     route: '/notes/:id',
-    path: /^\/notes\/([^/]+)$/u,
+    path: /^\/notes\/([^/?#]+)$/u,
     namespace: 'student-note',
     resourceType: 'student-note',
-    operations: Object.freeze({ GET: 'read', PUT: 'update', DELETE: 'delete' })
+    operations: Object.freeze({ GET: 'read', PUT: 'update' })
   },
   {
     service: 'announcements',
     route: '/announcements/:id',
-    path: /^\/announcements\/([^/]+)$/u,
+    path: /^\/announcements\/([^/?#]+)$/u,
     namespace: 'instructor-announcement',
     resourceType: 'instructor-announcement',
-    operations: Object.freeze({ GET: 'read', PUT: 'update' })
+    operations: Object.freeze({
+      GET: 'read', POST: 'write', PUT: 'write', PATCH: 'write', DELETE: 'write'
+    })
+  },
+  {
+    service: 'announcements',
+    route: '/announcements',
+    path: /^\/announcements$/u,
+    resourceId: 'instructor-announcements',
+    resourceType: 'instructor-announcement',
+    operations: Object.freeze({ POST: 'write', PUT: 'write', PATCH: 'write', DELETE: 'write' })
   }
 ]);
 

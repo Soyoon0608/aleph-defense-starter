@@ -10,20 +10,16 @@ test('identifies a student note from the exact notes request tuple', () => {
   });
 });
 
-test('preserves the existing student note collection routes', () => {
-  assert.deepEqual(identifyResource({
+test('does not identify the student note collection routes', () => {
+  assert.equal(identifyResource({
     service: 'notes', method: 'GET', path: '/notes', route: 'GET /notes'
-  }), {
-    resourceType: 'student-note-collection', resourceId: 'student-notes', operation: 'list'
-  });
-  assert.deepEqual(identifyResource({
+  }), null);
+  assert.equal(identifyResource({
     service: 'notes', method: 'POST', path: '/notes', route: 'POST /notes'
-  }), {
-    resourceType: 'student-note-collection', resourceId: 'student-notes', operation: 'create'
-  });
+  }), null);
 });
 
-test('identifies an instructor announcement and preserves its operation', () => {
+test('identifies announcement reads and marks writes as write operations', () => {
   assert.deepEqual(identifyResource({
     service: 'announcements', method: 'GET', path: '/announcements/demo',
     route: 'GET /announcements/:id'
@@ -36,7 +32,23 @@ test('identifies an instructor announcement and preserves its operation', () => 
     route: 'PUT /announcements/:id'
   }), {
     resourceType: 'instructor-announcement',
-    resourceId: 'instructor-announcement:demo', operation: 'update'
+    resourceId: 'instructor-announcement:demo', operation: 'write'
+  });
+  for (const method of ['POST', 'PATCH', 'DELETE']) {
+    assert.deepEqual(identifyResource({
+      service: 'announcements', method, path: '/announcements/demo',
+      route: `${method} /announcements/:id`
+    }), {
+      resourceType: 'instructor-announcement',
+      resourceId: 'instructor-announcement:demo', operation: 'write'
+    });
+  }
+  assert.deepEqual(identifyResource({
+    service: 'announcements', method: 'POST', path: '/announcements',
+    route: 'POST /announcements'
+  }), {
+    resourceType: 'instructor-announcement',
+    resourceId: 'instructor-announcements', operation: 'write'
   });
 });
 
@@ -52,5 +64,17 @@ test('does not infer resources from unknown or mismatched request tuples', () =>
   assert.equal(identifyResource({
     service: 'teachers', method: 'GET', path: '/announcements/demo',
     route: 'GET /announcements/:id'
+  }), null);
+  assert.equal(identifyResource({
+    service: 'notes', method: 'PUT', path: '/notes/demo',
+    route: 'PATCH /notes/:id'
+  }), null);
+  assert.equal(identifyResource({
+    service: 'notes', method: 'DELETE', path: '/notes/demo',
+    route: 'DELETE /notes/:id'
+  }), null);
+  assert.equal(identifyResource({
+    service: 'notes', method: 'GET', path: '/notes/demo?all=true',
+    route: 'GET /notes/:id'
   }), null);
 });

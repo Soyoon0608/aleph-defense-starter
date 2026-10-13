@@ -334,7 +334,11 @@ async function runStepEightChecks(config) {
     const resource = identifyResource(request);
     const response = await decide(request);
     const resourceMatches = reasonCode === 'resource_unknown'
-      ? resource === null : resource !== null;
+      ? resource === null
+      : reasonCode === 'resource_forbidden'
+        ? resource?.resourceType === 'instructor-announcement'
+          && resource.operation === 'write'
+        : resource !== null;
     if (!resourceMatches || response.decision !== decision || response.reasonCode !== reasonCode) {
       throw new Error(`8단계 판정 점검 실패: ${attackId}`);
     }
@@ -380,13 +384,31 @@ async function runStepEightChecks(config) {
   results.push({ attackId: 'body_role_rejected', expected: '요청 본문의 role은 권한 근거가 아님',
     observed: `가상 API 응답: HTTP ${forgedRoleApi.statusCode}` });
 
-  await checkDecision('student_announcement_update', '강사 공지 수정 거부', {
-    ...normal, service: 'announcements', method: 'PUT', path: '/announcements/demo',
-    route: 'PUT /announcements/:id'
+  for (const [method, path, route, attackId, expected] of [
+    ['GET', '/notes', 'GET /notes', 'note_collection_read_denied', '메모 전체 목록 거부'],
+    ['POST', '/notes', 'POST /notes', 'note_collection_create_denied', '메모 컬렉션 경로 거부'],
+  ]) {
+    await checkDecision(attackId, expected, { ...normal, method, path, route },
+      'deny', 'resource_unknown');
+  }
+
+  for (const method of ['POST', 'PUT', 'PATCH', 'DELETE']) {
+    await checkDecision(`announcement_${method.toLowerCase()}_denied`,
+      '공지 쓰기 거부', {
+        ...normal, service: 'announcements', method, path: '/announcements/demo',
+        route: `${method} /announcements/:id`
+      }, 'deny', 'resource_forbidden');
+  }
+  await checkDecision('announcement_collection_post_denied', '공지 컬렉션 쓰기 거부', {
+    ...normal, service: 'announcements', method: 'POST', path: '/announcements',
+    route: 'POST /announcements'
   }, 'deny', 'resource_forbidden');
   await checkDecision('unknown_resource_path', '알 수 없는 경로 거부', {
     ...normal, method: 'GET', path: `/notes/${noteId}/export`,
     route: 'GET /notes/:id/export'
+  }, 'deny', 'resource_unknown');
+  await checkDecision('resource_route_mismatch', '경로와 route 불일치 거부', {
+    ...normal, method: 'GET', path: `/notes/${noteId}`, route: 'GET /notes/:other'
   }, 'deny', 'resource_unknown');
 
   return results;
