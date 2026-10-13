@@ -157,3 +157,12 @@ decide.mjs는 import, 파일 접근, 네트워크 없이 경보 하나를 판단
 respond.mjs는 명확한 block 후보에만 만료 시각과 근거 경보 번호를 붙이고, alert는 xdr/alerts.log에 기록합니다.
 
 다시 실행: npm run xdr:run -- web-injection
+
+## 6단계 판정기 확인
+
+별도로 설치할 접속 프로그램은 없습니다. 로컬 판정기 연습은 다음 순서로 확인합니다.
+
+1. `npm run decider:test`를 실행합니다.
+2. 등록 기기의 정상 요청이 `allow`로 판정되어 통과하는지 확인합니다.
+3. 미등록 기기의 가상 요청이 `deny`, 사유 코드 `device_not_registered`로 판정되어 통과하는지 확인합니다.
+4. 미등록 기기 공격은 심판이 담당합니다. 이 로컬 연습은 심판 판정이나 실제 접속 공격 시험이 아닙니다.

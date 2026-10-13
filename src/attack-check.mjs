@@ -1,6 +1,7 @@
 // The student changes this check as each stage adds an attack to the same app.
 // Never return tokens, private keys, real names, or note bodies.
 export async function runAttackChecks(config) {
+  if (config.step === 6) return runStepSixChecks();
   if (config.step === 5) return runStepFourChecks(config);
   if (config.step === 4) return runStepFourChecks(config);
   if (config.step === 3) return runStepThreeChecks(config);
@@ -180,4 +181,42 @@ async function runStepFourChecks(config) {
     });
   }
   return results;
+}
+
+async function runStepSixChecks() {
+  const [{ fixtureRequests }, { decide, RULE_IDS }] = await Promise.all([
+    import('../scripts/fixture-7.mjs'),
+    import('./decider.mjs')
+  ]);
+  if (!RULE_IDS.includes('device_registered')) {
+    throw new Error('6단계 device_registered 규칙을 먼저 구현해 주세요.');
+  }
+
+  const registeredRequest = fixtureRequests().normal;
+  const unregisteredRequest = {
+    ...fixtureRequests().normal,
+    deviceRegistered: false
+  };
+  const registeredResponse = await decide(registeredRequest);
+  const unregisteredResponse = await decide(unregisteredRequest);
+  if (registeredResponse.decision !== 'allow') {
+    throw new Error('등록 기기 정상 요청이 allow로 판정되지 않았습니다.');
+  }
+  if (unregisteredResponse.decision !== 'deny'
+      || unregisteredResponse.reasonCode !== 'device_not_registered') {
+    throw new Error('미등록 기기 가상 요청이 deny/device_not_registered로 판정되지 않았습니다.');
+  }
+
+  return [
+    {
+      attackId: 'registered_device_read',
+      expected: '등록 기기의 정상 자료 읽기는 allow',
+      observed: `가상 판정 요청 결과: ${registeredResponse.decision}/${registeredResponse.reasonCode}`
+    },
+    {
+      attackId: 'unregistered_device_read',
+      expected: '미등록 기기 가상 요청은 deny/device_not_registered',
+      observed: `가상 판정 요청 결과: ${unregisteredResponse.decision}/${unregisteredResponse.reasonCode}`
+    }
+  ];
 }
