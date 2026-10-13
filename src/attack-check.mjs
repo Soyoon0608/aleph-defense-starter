@@ -337,7 +337,6 @@ async function runStepEightChecks(config) {
       ? resource === null
       : reasonCode === 'resource_forbidden'
         ? resource?.resourceType === 'instructor-announcement'
-          && resource.operation === 'write'
         : resource !== null;
     if (!resourceMatches || response.decision !== decision || response.reasonCode !== reasonCode) {
       throw new Error(`8단계 판정 점검 실패: ${attackId}`);
@@ -392,9 +391,9 @@ async function runStepEightChecks(config) {
       'deny', 'resource_unknown');
   }
 
-  for (const method of ['POST', 'PUT', 'PATCH', 'DELETE']) {
+  for (const method of ['GET', 'POST', 'PUT', 'PATCH', 'DELETE']) {
     await checkDecision(`announcement_${method.toLowerCase()}_denied`,
-      '공지 쓰기 거부', {
+      '공지 경로 접근 거부', {
         ...normal, service: 'announcements', method, path: '/announcements/demo',
         route: `${method} /announcements/:id`
       }, 'deny', 'resource_forbidden');

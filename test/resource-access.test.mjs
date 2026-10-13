@@ -223,6 +223,7 @@ test('8-stage bundle check covers the virtual resource-zone cases', async () => 
     'body_role_rejected',
     'note_collection_read_denied',
     'note_collection_create_denied',
+    'announcement_get_denied',
     'announcement_post_denied',
     'announcement_put_denied',
     'announcement_patch_denied',
@@ -233,7 +234,7 @@ test('8-stage bundle check covers the virtual resource-zone cases', async () => 
   ]);
 });
 
-test('denies note collections, announcement writes, and unknown resource tuples', async () => {
+test('denies note collections, all announcements, and unknown resource tuples', async () => {
   const normal = fixtureRequests().normal;
   for (const method of ['GET', 'POST']) {
     const collection = await decide({
@@ -243,19 +244,13 @@ test('denies note collections, announcement writes, and unknown resource tuples'
     assert.equal(collection.reasonCode, 'resource_unknown');
   }
 
-  const announcementRead = await decide({
-    ...normal, service: 'announcements', method: 'GET',
-    path: '/announcements/notice-a', route: 'GET /announcements/:id'
-  });
-  assert.equal(announcementRead.decision, 'allow');
-
-  for (const method of ['POST', 'PUT', 'PATCH', 'DELETE']) {
-    const announcementWrite = await decide({
+  for (const method of ['GET', 'POST', 'PUT', 'PATCH', 'DELETE']) {
+    const announcement = await decide({
       ...normal, service: 'announcements', method,
       path: '/announcements/notice-a', route: `${method} /announcements/:id`
     });
-    assert.equal(announcementWrite.decision, 'deny');
-    assert.equal(announcementWrite.reasonCode, 'resource_forbidden');
+    assert.equal(announcement.decision, 'deny');
+    assert.equal(announcement.reasonCode, 'resource_forbidden');
   }
 
   for (const request of [

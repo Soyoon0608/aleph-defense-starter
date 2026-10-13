@@ -32,8 +32,7 @@ export async function decide(request) {
   const deviceRegistered = request.deviceRegistered === true;
   const resource = identifyResource(request);
   const unknownResource = resource === null;
-  const forbiddenResource = resource?.resourceType === 'instructor-announcement'
-    && resource.operation !== 'read';
+  const forbiddenResource = resource?.resourceType === 'instructor-announcement';
   const unusualTime = request.signals.hour < 6 || request.signals.hour >= 22;
   const unfamiliarNetwork = request.signals.network === 'unusual';
   const recentReadBurst = request.recentEvents.some(event => event.kind === 'risk_signal'
