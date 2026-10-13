@@ -1,0 +1,6 @@
+{
+  "schema": "aleph.defense.safe-backup-manifest.v1",
+  "policyVersion": 9,
+  "policySha256": "b7e476c8e15f8160367a9a2f1be2d874c2a3f97839c62bc4ebf224e331970809",
+  "noteBindingSha256": "81642b19e53e6d6dfee293ef70db3c981ba87521cc649ee4e48dc61f7533a6ef"
+}

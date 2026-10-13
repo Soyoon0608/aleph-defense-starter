@@ -533,12 +533,20 @@ async function runStepTenChecks(config) {
   } = await import('./policy-recovery.mjs');
   const {
     contentDigest,
-    handleRestore
+    handleRestore,
+    noteBindingDigest
   } = await import('./restore-api.mjs');
 
   const policyBackup = JSON.parse(
     await readFile(
       new URL('../backups/policy.safe.json', import.meta.url),
+      'utf8'
+    )
+  );
+
+  const safeManifest = JSON.parse(
+    await readFile(
+      new URL('../backups/manifest.safe.json', import.meta.url),
       'utf8'
     )
   );
@@ -743,7 +751,15 @@ async function runStepTenChecks(config) {
         identity
       }),
       createClient:
-        fakeCreateClient(liveRows, backupRows)
+        fakeCreateClient(liveRows, backupRows),
+      loadBackupManifest: async () => ({
+        ...safeManifest,
+        noteBindingSha256: noteBindingDigest(
+          noteBackup.id,
+          noteBackup.owner_id,
+          noteBackup.content_sha256
+        )
+      })
     });
 
     return response;

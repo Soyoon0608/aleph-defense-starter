@@ -8,6 +8,9 @@ import config from '../aleph.config.json' with { type: 'json' };
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
 const SHA256 = /^[a-f0-9]{64}$/u;
 
+const SAFE_MANIFEST_SCHEMA =
+  'aleph.defense.safe-backup-manifest.v1';
+
 let verifier;
 
 export function contentDigest(content) {
@@ -17,6 +20,13 @@ export function contentDigest(content) {
 
   return createHash('sha256')
     .update(content, 'utf8')
+    .digest('hex');
+}
+
+
+export function noteBindingDigest(id, ownerId, contentSha256) {
+  return createHash('sha256')
+    .update(`${id}:${ownerId}:${contentSha256}`, 'utf8')
     .digest('hex');
 }
 
@@ -57,8 +67,37 @@ async function readVerifiedPolicyBackup(dependencies = {}) {
           )
         );
 
-  const backup = await loadPolicyBackup();
-  return verifySafePolicyBackup(backup);
+  const loadBackupManifest =
+    typeof dependencies.loadBackupManifest === 'function'
+      ? dependencies.loadBackupManifest
+      : async () => JSON.parse(
+          await readFile(
+            new URL('../backups/manifest.safe.json', import.meta.url),
+            'utf8'
+          )
+        );
+
+  const [backup, manifest] = await Promise.all([
+    loadPolicyBackup(),
+    loadBackupManifest()
+  ]);
+
+  const verified = verifySafePolicyBackup(backup);
+
+  if (!manifest
+      || typeof manifest !== 'object'
+      || Array.isArray(manifest)
+      || manifest.schema !== SAFE_MANIFEST_SCHEMA
+      || manifest.policyVersion !== verified.version
+      || manifest.policySha256 !== verified.sha256
+      || !SHA256.test(manifest.noteBindingSha256 ?? '')) {
+    throw new Error('backup_manifest_verification_failed');
+  }
+
+  return {
+    ...verified,
+    manifest
+  };
 }
 
 export async function handleRestore(req, res, dependencies = {}) {
@@ -206,6 +245,19 @@ export async function handleRestore(req, res, dependencies = {}) {
 
     if (digest !== backup.content_sha256) {
       return res.status(409).json({ error: '복구 사본 내용 해시가 다릅니다.' });
+    }
+
+    const backupBinding = noteBindingDigest(
+      backup.id,
+      backup.owner_id,
+      backup.content_sha256
+    );
+
+    if (backupBinding
+        !== verifiedPolicyBackup.manifest.noteBindingSha256) {
+      return res.status(409).json({
+        error: '검증된 메모 사본과 일치하지 않습니다.'
+      });
     }
 
     // 한 건만 upsert합니다. 다른 메모와 감사 기록은 건드리지 않습니다.

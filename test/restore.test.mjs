@@ -2,9 +2,11 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
   contentDigest,
-  handleRestore
+  handleRestore,
+  noteBindingDigest
 } from '../src/restore-api.mjs';
 import config from '../aleph.config.json' with { type: 'json' };
+import safeManifest from '../backups/manifest.safe.json' with { type: 'json' };
 
 function response() {
   return {
@@ -94,9 +96,21 @@ async function callRestore({
   backupRows,
   identity = 'b',
   body,
-  loadPolicyBackup
+  loadPolicyBackup,
+  loadBackupManifest
 }) {
   const res = response();
+
+  const fixtureManifest = backupRows.length === 1
+    ? {
+        ...safeManifest,
+        noteBindingSha256: noteBindingDigest(
+          backupRows[0].id,
+          backupRows[0].owner_id,
+          backupRows[0].content_sha256
+        )
+      }
+    : safeManifest;
 
   await handleRestore({
     method: 'POST',
@@ -110,7 +124,10 @@ async function callRestore({
       identity
     }),
     createClient: fakeCreateClient(liveRows, backupRows),
-    ...(loadPolicyBackup ? { loadPolicyBackup } : {})
+    ...(loadPolicyBackup ? { loadPolicyBackup } : {}),
+    loadBackupManifest:
+      loadBackupManifest
+      ?? (async () => fixtureManifest)
   });
 
   return res;
@@ -249,6 +266,32 @@ test('stops before restore when the policy backup cannot be verified', async () 
     loadPolicyBackup: async () => {
       throw new Error('fixture_policy_backup_unverified');
     }
+  });
+
+  assert.equal(res.statusCode, 409);
+  assert.deepEqual(liveRows, before);
+});
+
+test('stops before restore when the independent note binding differs', async () => {
+  const backup = backupRow();
+
+  const liveRows = [{
+    id: backup.id,
+    owner_id: backup.owner_id,
+    title: 'Modified B note',
+    content: 'Modified B body'
+  }];
+
+  const before = structuredClone(liveRows);
+
+  const res = await callRestore({
+    liveRows,
+    backupRows: [backup],
+    body: { id: backup.id },
+    loadBackupManifest: async () => ({
+      ...safeManifest,
+      noteBindingSha256: '0'.repeat(64)
+    })
   });
 
   assert.equal(res.statusCode, 409);
