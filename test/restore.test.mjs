@@ -313,3 +313,35 @@ test('stops before restore when the independent note binding differs', async () 
   assert.equal(res.statusCode, 409);
   assert.deepEqual(liveRows, before);
 });
+
+test('returns verified backup proof with the successful restore', async () => {
+  const backup = backupRow();
+
+  const liveRows = [{
+    id: backup.id,
+    owner_id: backup.owner_id,
+    title: 'Modified B note',
+    content: 'Modified B body'
+  }];
+
+  const res = await callRestore({
+    liveRows,
+    backupRows: [backup],
+    body: { id: backup.id }
+  });
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.backupVerified, true);
+  assert.equal(res.body.restoreVersion, 9);
+  assert.deepEqual(
+    res.body.changeScope,
+    ['byteback_notes:one-row']
+  );
+
+  assert.equal(res.body.id, backup.id);
+  assert.equal(res.body.owner_id, backup.owner_id);
+  assert.equal(
+    res.body.content_sha256,
+    backup.content_sha256
+  );
+});

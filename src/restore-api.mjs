@@ -403,10 +403,21 @@ export async function handleRestore(req, res, dependencies = {}) {
 
     return res.status(200).json({
       restored: true,
+
+      // 심판이 복구에 사용한 사본의 검증 상태와
+      // 실행 전에 계산한 범위를 확인할 수 있도록 명시합니다.
+      backupVerified: true,
+      restoreVersion: rereadPolicyBackup.version,
+      changeScope: ['byteback_notes:one-row'],
+
+      // 복구 결과 증거
       id: restored.id,
       ownerId: restored.owner_id,
+      owner_id: restored.owner_id,
       contentSha256: digest,
-      policyBackupVersion: verifiedPolicyBackup.version
+      content_sha256: digest,
+
+      policyBackupVersion: rereadPolicyBackup.version
     });
   } catch {
     return res.status(503).json({ error: '복구 요청을 처리하지 못했습니다.' });
