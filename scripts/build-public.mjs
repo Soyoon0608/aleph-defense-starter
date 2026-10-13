@@ -4,8 +4,8 @@ import { deploymentIdentity } from './deployment-identity.mjs';
 
 const root = resolve(import.meta.dirname, '..');
 const config = JSON.parse(await readFile(resolve(root, 'aleph.config.json'), 'utf8'));
-if (!Number.isInteger(config.step) || config.step < 1 || config.step > 9) {
-  throw new Error('현재 빌드는 1~9단계를 지원합니다.');
+if (!Number.isInteger(config.step) || config.step < 1 || config.step > 10) {
+  throw new Error('현재 빌드는 1~10단계를 지원합니다.');
 }
 const data = JSON.parse(await readFile(resolve(root, 'data.json'), 'utf8'));
 if (!Array.isArray(data.notes)) {

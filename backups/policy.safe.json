@@ -1,0 +1,32 @@
+{
+  "schema": "aleph.defense.safe-policy.v1",
+  "version": 9,
+  "sourceCommit": "95dddea2480ba8976af3e9e7a64691e1d2b07faa",
+  "policy": {
+    "ruleIds": [
+      "device_registered",
+      "step_up_required",
+      "resource_zone"
+    ],
+    "allowedRoutes": [
+      "GET /api/notes/:id",
+      "PUT /api/notes/:id",
+      "GET /api/announcements/:id"
+    ],
+    "zones": {
+      "notes": {
+        "ownRead": "allow",
+        "ownUpdate": "allow",
+        "crossOwner": "deny"
+      },
+      "announcements": {
+        "read": "allow",
+        "write": "deny"
+      },
+      "materials": {
+        "access": "deny"
+      }
+    }
+  },
+  "sha256": "b7e476c8e15f8160367a9a2f1be2d874c2a3f97839c62bc4ebf224e331970809"
+}

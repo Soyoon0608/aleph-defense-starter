@@ -1,6 +1,7 @@
 // The student changes this check as each stage adds an attack to the same app.
 // Never return tokens, private keys, real names, or note bodies.
 export async function runAttackChecks(config) {
+  if (config.step === 10) return runStepTenChecks(config);
   if (config.step === 9) return runStepNineChecks();
   if (config.step === 8) return runStepEightChecks(config);
   if (config.step === 7) return runStepSevenChecks();
@@ -518,6 +519,361 @@ async function runStepNineChecks() {
     attackId: 'separate_users_not_combined',
     expected: '서로 다른 사용자의 조회는 합산하지 않음',
     observed: `가상 탐지 결과: ${splitUsers.action}`
+  });
+
+  return results;
+}
+
+async function runStepTenChecks(config) {
+  const { readFile } = await import('node:fs/promises');
+  const {
+    previewPolicyRestore,
+    restoreTestPolicy,
+    verifySafePolicyBackup
+  } = await import('./policy-recovery.mjs');
+  const {
+    contentDigest,
+    handleRestore
+  } = await import('./restore-api.mjs');
+
+  const policyBackup = JSON.parse(
+    await readFile(
+      new URL('../backups/policy.safe.json', import.meta.url),
+      'utf8'
+    )
+  );
+
+  const results = [];
+
+  // 1. 검증된 안전 정책 사본을 다시 읽습니다.
+  const verified = verifySafePolicyBackup(policyBackup);
+
+  if (!verified.verified || verified.version !== 9) {
+    throw new Error('10단계 안전 정책 사본을 검증하지 못했습니다.');
+  }
+
+  results.push({
+    attackId: 'safe_policy_backup_verified',
+    expected: '검증된 9단계 안전 정책 사본의 해시가 일치',
+    observed: `로컬 사본 검증: verified/version-${verified.version}`
+  });
+
+  // 2. 실행 전에 바뀔 정책 항목을 확인합니다.
+  const currentPolicy = structuredClone(verified.policy);
+  currentPolicy.zones.notes.crossOwner = 'allow';
+  currentPolicy.otherServices = {
+    fixtureService: { access: 'preserve' }
+  };
+  currentPolicy.auditHistory = [
+    { id: 'audit-fixture', action: 'policy_changed' }
+  ];
+
+  const preview = previewPolicyRestore(
+    currentPolicy,
+    policyBackup
+  );
+
+  if (preview.changes.length !== 1
+      || preview.changes[0].path !== 'zones.notes.crossOwner'
+      || preview.changes[0].current !== 'allow'
+      || preview.changes[0].restore !== 'deny') {
+    throw new Error('10단계 정책 복원 미리보기가 올바르지 않습니다.');
+  }
+
+  results.push({
+    attackId: 'policy_restore_previewed',
+    expected: '실행 전에 B의 A 자료 허용 변경 한 항목만 표시',
+    observed: `로컬 미리보기: ${preview.changes[0].path} allow→deny`
+  });
+
+  // 3. 검증한 정책만 복원하고 다른 서비스와 감사 이력을 보존합니다.
+  const restoredPolicy = restoreTestPolicy(
+    currentPolicy,
+    policyBackup,
+    preview.changes
+  );
+
+  if (restoredPolicy.policy.zones.notes.crossOwner !== 'deny'
+      || restoredPolicy.policy.zones.notes.ownRead !== 'allow'
+      || restoredPolicy.policy.otherServices.fixtureService.access !== 'preserve'
+      || restoredPolicy.policy.auditHistory[0]?.id !== 'audit-fixture') {
+    throw new Error('10단계 시험 정책 복원 결과가 올바르지 않습니다.');
+  }
+
+  results.push({
+    attackId: 'safe_policy_restored',
+    expected: 'B의 A 자료 요청은 deny로 복원하고 정상 규칙·감사 이력은 보존',
+    observed: '로컬 복원: crossOwner=deny; 정상 규칙·감사 이력 보존'
+  });
+
+  // 4. 변조된 정책 사본은 사용하지 않습니다.
+  const tamperedPolicyBackup = structuredClone(policyBackup);
+  tamperedPolicyBackup.policy.zones.notes.crossOwner = 'allow';
+
+  let tamperedPolicyRejected = false;
+
+  try {
+    verifySafePolicyBackup(tamperedPolicyBackup);
+  } catch (error) {
+    tamperedPolicyRejected =
+      error.message === 'policy_backup_verification_failed';
+  }
+
+  if (!tamperedPolicyRejected) {
+    throw new Error('10단계 변조된 정책 사본이 거부되지 않았습니다.');
+  }
+
+  results.push({
+    attackId: 'tampered_policy_backup_rejected',
+    expected: '해시가 다른 정책 사본은 복원 전에 중단',
+    observed: '로컬 검증 결과: policy_backup_verification_failed'
+  });
+
+  const backupContent = 'fixture-original-content';
+  const noteBackup = {
+    id: '00000000-0000-4000-8000-00000000000b',
+    owner_id: '00000000-0000-4000-8000-0000000000b0',
+    title: 'fixture-b-note',
+    content: backupContent,
+    content_sha256: contentDigest(backupContent),
+    sample_marker: config.sampleMarker
+  };
+
+  function fakeResponse() {
+    return {
+      headers: {},
+      setHeader(name, value) {
+        this.headers[name] = value;
+      },
+      status(code) {
+        this.statusCode = code;
+        return this;
+      },
+      json(body) {
+        this.body = body;
+        return this;
+      }
+    };
+  }
+
+  function fakeCreateClient(liveRows, backupRows) {
+    return () => ({
+      from(table) {
+        if (table === 'byteback_notes_backup') {
+          const filters = [];
+
+          return {
+            select() {
+              return this;
+            },
+            eq(field, value) {
+              filters.push([field, value]);
+              return this;
+            },
+            async limit(count) {
+              return {
+                data: backupRows.filter((row) =>
+                  filters.every(([field, value]) =>
+                    row[field] === value
+                  )
+                ).slice(0, count),
+                error: null
+              };
+            }
+          };
+        }
+
+        if (table === 'byteback_notes') {
+          let restored = null;
+
+          return {
+            upsert(values) {
+              const index = liveRows.findIndex(
+                (row) => row.id === values.id
+              );
+
+              if (index === -1) {
+                liveRows.push({ ...values });
+                restored = liveRows.at(-1);
+              } else {
+                liveRows[index] = {
+                  ...liveRows[index],
+                  ...values
+                };
+                restored = liveRows[index];
+              }
+
+              return this;
+            },
+            select() {
+              return this;
+            },
+            async maybeSingle() {
+              return {
+                data: restored ? { ...restored } : null,
+                error: null
+              };
+            }
+          };
+        }
+
+        throw new Error(`unexpected_table:${table}`);
+      }
+    });
+  }
+
+  async function callRestore({
+    liveRows,
+    backupRows,
+    identity = 'b',
+    body
+  }) {
+    const response = fakeResponse();
+
+    await handleRestore({
+      method: 'POST',
+      headers: {},
+      body
+    }, response, {
+      supabaseUrl:
+        new URL(config.identityProvider.issuer).origin,
+      verifyLogin: async () => ({
+        kind: 'judge',
+        userId: 'judge-fixture',
+        identity
+      }),
+      createClient:
+        fakeCreateClient(liveRows, backupRows)
+    });
+
+    return response;
+  }
+
+  // 5. 변조된 B 메모 한 건을 사본에서 복구합니다.
+  const modifiedRows = [
+    {
+      id: noteBackup.id,
+      owner_id: noteBackup.owner_id,
+      title: 'fixture-modified',
+      content: 'fixture-modified-content'
+    },
+    {
+      id: '00000000-0000-4000-8000-00000000000a',
+      owner_id: '00000000-0000-4000-8000-0000000000a0',
+      title: 'fixture-a-note',
+      content: 'fixture-a-preserved'
+    }
+  ];
+
+  const modifiedResponse = await callRestore({
+    liveRows: modifiedRows,
+    backupRows: [noteBackup],
+    body: { id: noteBackup.id }
+  });
+
+  const modifiedRestored = modifiedRows.find(
+    (row) => row.id === noteBackup.id
+  );
+
+  if (modifiedResponse.statusCode !== 200
+      || modifiedRestored?.owner_id !== noteBackup.owner_id
+      || contentDigest(modifiedRestored?.content ?? '')
+        !== noteBackup.content_sha256
+      || modifiedRows.find(
+        (row) => row.id !== noteBackup.id
+      )?.content !== 'fixture-a-preserved') {
+    throw new Error('10단계 변조 메모 한 건 복구가 올바르지 않습니다.');
+  }
+
+  results.push({
+    attackId: 'modified_b_note_restored',
+    expected: '변조된 B 메모 한 건만 검증된 사본의 ID·소유자·해시로 복구',
+    observed: '로컬 복구: 대상 1건 검증 완료; 다른 메모 보존'
+  });
+
+  // 6. 삭제된 B 메모도 한 건만 되살립니다.
+  const deletedRows = [{
+    id: '00000000-0000-4000-8000-00000000000a',
+    owner_id: '00000000-0000-4000-8000-0000000000a0',
+    title: 'fixture-a-note',
+    content: 'fixture-a-preserved'
+  }];
+
+  const deletedResponse = await callRestore({
+    liveRows: deletedRows,
+    backupRows: [noteBackup]
+  });
+
+  const deletedRestored = deletedRows.find(
+    (row) => row.id === noteBackup.id
+  );
+
+  if (deletedResponse.statusCode !== 200
+      || !deletedRestored
+      || deletedRestored.owner_id !== noteBackup.owner_id
+      || contentDigest(deletedRestored.content)
+        !== noteBackup.content_sha256
+      || deletedRows.length !== 2) {
+    throw new Error('10단계 삭제 메모 복구가 올바르지 않습니다.');
+  }
+
+  results.push({
+    attackId: 'deleted_b_note_restored',
+    expected: '삭제된 B 메모 한 건을 검증된 비공개 사본에서 복구',
+    observed: '로컬 복구: 삭제 대상 1건 복원 및 ID·소유자·해시 일치'
+  });
+
+  // 7. 내용 해시가 바뀐 메모 사본은 거부합니다.
+  const badBackup = {
+    ...noteBackup,
+    content: 'fixture-tampered-backup'
+  };
+
+  const rejectedRows = [];
+
+  const badResponse = await callRestore({
+    liveRows: rejectedRows,
+    backupRows: [badBackup],
+    body: { id: badBackup.id }
+  });
+
+  if (badResponse.statusCode !== 409
+      || rejectedRows.length !== 0) {
+    throw new Error('10단계 잘못된 메모 백업이 거부되지 않았습니다.');
+  }
+
+  results.push({
+    attackId: 'tampered_note_backup_rejected',
+    expected: '내용 해시가 사본과 다르면 메모를 복구하지 않음',
+    observed: '로컬 복구 결과: 409; 자료 변경 없음'
+  });
+
+  // 8. 시험 계정 B 외에는 복구 경로를 사용할 수 없습니다.
+  const deniedRows = [];
+
+  const deniedResponse = await callRestore({
+    liveRows: deniedRows,
+    backupRows: [noteBackup],
+    identity: 'a',
+    body: { id: noteBackup.id }
+  });
+
+  if (deniedResponse.statusCode !== 403
+      || deniedRows.length !== 0) {
+    throw new Error('10단계 B 외 복구 요청이 거부되지 않았습니다.');
+  }
+
+  results.push({
+    attackId: 'non_b_restore_denied',
+    expected: '시험 계정 B 외의 복구 요청은 거부',
+    observed: '로컬 복구 결과: 403; 자료 변경 없음'
+  });
+
+  // 실제 복구 후 심판의 1~9단계 대표 공격 재전송은 아직 수행하지 않았습니다.
+  results.push({
+    attackId: 'post_restore_stage_1_9_replay',
+    expected: '실제 복구 뒤 1~9단계 정상·금지 요청을 다시 확인',
+    observed: '미실행: 실제 대표 공격 재전송은 심판 판정에서 확인'
   });
 
   return results;

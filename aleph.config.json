@@ -1,5 +1,5 @@
 {
-  "step": 9,
+  "step": 10,
   "repoUrl": "https://github.com/Soyoon0608/aleph-defense-starter",
   "publicAppUrl": "https://aleph-defense-starter.vercel.app",
   "sampleMarker": "SAMPLE_NOTE_1",
@@ -15,5 +15,5 @@
     "GET /api/announcements/:id"
   ],
   "originalApiUrl": "https://qmscbqyufehupfhombmu.supabase.co/rest/v1/byteback_notes",
-  "restoreRoute": null
+  "restoreRoute": "/api/restore"
 }

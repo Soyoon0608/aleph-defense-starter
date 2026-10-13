@@ -12,7 +12,10 @@ export function deploymentIdentity(env, config) {
       || !REPO.test(repo || '') || repo === '.' || repo === '..'
       || repo.toLowerCase().endsWith('.git') || !SHA.test(commit || '')
       || !HOST.test(host || '') || !Number.isInteger(config?.step)
-      || config.step < 1 || config.step > 9
+      || config.step < 1 || config.step > 10
+      || (config.step >= 10
+        && (typeof config.restoreRoute !== 'string'
+          || !/^\/api\/[A-Za-z0-9._/-]+$/u.test(config.restoreRoute)))
       || typeof config.judgeIssuer !== 'string'
       || !/^https:\/\/[a-z0-9-]+\.up\.railway\.app\/defense\/judge$/iu.test(config.judgeIssuer)
       || typeof config.sampleMarker !== 'string'
@@ -24,6 +27,7 @@ export function deploymentIdentity(env, config) {
     step: config.step,
     ...(config.step >= 3 ? { allowedRoutes: config.allowedRoutes } : {}),
     ...(config.step >= 5 ? { originalApiUrl: config.originalApiUrl } : {}),
+    ...(config.step >= 10 ? { restoreRoute: config.restoreRoute } : {}),
     repoUrl: `https://github.com/${owner.toLowerCase()}/${repo.toLowerCase()}`,
     commit: commit.toLowerCase(),
     publicAppUrl: `https://${host.toLowerCase()}`,
