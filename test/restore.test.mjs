@@ -93,7 +93,8 @@ async function callRestore({
   liveRows,
   backupRows,
   identity = 'b',
-  body
+  body,
+  loadPolicyBackup
 }) {
   const res = response();
 
@@ -108,7 +109,8 @@ async function callRestore({
       userId: 'judge-fixture',
       identity
     }),
-    createClient: fakeCreateClient(liveRows, backupRows)
+    createClient: fakeCreateClient(liveRows, backupRows),
+    ...(loadPolicyBackup ? { loadPolicyBackup } : {})
   });
 
   return res;
@@ -226,4 +228,29 @@ test('only judge identity B may use the restore route', async () => {
 
   assert.equal(res.statusCode, 403);
   assert.equal(liveRows.length, 0);
+});
+
+test('stops before restore when the policy backup cannot be verified', async () => {
+  const backup = backupRow();
+
+  const liveRows = [{
+    id: backup.id,
+    owner_id: backup.owner_id,
+    title: 'Modified B note',
+    content: 'Modified B body'
+  }];
+
+  const before = structuredClone(liveRows);
+
+  const res = await callRestore({
+    liveRows,
+    backupRows: [backup],
+    body: { id: backup.id },
+    loadPolicyBackup: async () => {
+      throw new Error('fixture_policy_backup_unverified');
+    }
+  });
+
+  assert.equal(res.statusCode, 409);
+  assert.deepEqual(liveRows, before);
 });

@@ -1,6 +1,8 @@
 import { createHash } from 'node:crypto';
+import { readFile } from 'node:fs/promises';
 import { createClient } from '@supabase/supabase-js';
 import { createLoginVerifier } from './verify-login.mjs';
+import { verifySafePolicyBackup } from './policy-recovery.mjs';
 import config from '../aleph.config.json' with { type: 'json' };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
@@ -42,6 +44,21 @@ function parseRestoreInput(body) {
   }
 
   return input;
+}
+
+async function readVerifiedPolicyBackup(dependencies = {}) {
+  const loadPolicyBackup =
+    typeof dependencies.loadPolicyBackup === 'function'
+      ? dependencies.loadPolicyBackup
+      : async () => JSON.parse(
+          await readFile(
+            new URL('../backups/policy.safe.json', import.meta.url),
+            'utf8'
+          )
+        );
+
+  const backup = await loadPolicyBackup();
+  return verifySafePolicyBackup(backup);
 }
 
 export async function handleRestore(req, res, dependencies = {}) {
@@ -99,6 +116,17 @@ export async function handleRestore(req, res, dependencies = {}) {
     const client = injectedDependencies
       ? dependencies.createClient
       : createClient;
+
+    let verifiedPolicyBackup;
+
+    try {
+      verifiedPolicyBackup =
+        await readVerifiedPolicyBackup(dependencies);
+    } catch {
+      return res.status(409).json({
+        error: '검증된 정책 사본을 확인할 수 없습니다.'
+      });
+    }
 
     const db = client(url, key, {
       auth: {
@@ -184,7 +212,8 @@ export async function handleRestore(req, res, dependencies = {}) {
       restored: true,
       id: restored.id,
       ownerId: restored.owner_id,
-      contentSha256: digest
+      contentSha256: digest,
+      policyBackupVersion: verifiedPolicyBackup.version
     });
   } catch {
     return res.status(503).json({ error: '복구 요청을 처리하지 못했습니다.' });
