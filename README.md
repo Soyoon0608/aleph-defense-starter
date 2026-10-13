@@ -152,7 +152,7 @@ respond.mjs는 근거 경보 ID와 15분 만료가 있는 차단 후보를 생�
 
 웹 접근 경보 26건을 MITRE ATT&CK T1190 기반 패턴으로 분류합니다.
 decide.mjs는 import, 파일 접근, 네트워크 없이 경보 하나를 판단합니다.
-시험 결과: block 7건, alert 10건, record 9건.
+시험 결과: block 8건, alert 9건, record 9건.
 정상으로 검토한 9개 시험 이벤트의 block은 0건입니다.
 respond.mjs는 명확한 block 후보에만 만료 시각과 근거 경보 번호를 붙이고, alert는 xdr/alerts.log에 기록합니다.
 
