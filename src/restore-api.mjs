@@ -75,8 +75,24 @@ export async function handleRestore(req, res, dependencies = {}) {
   try {
     input = parseRestoreInput(req.body);
   } catch {
+    const rawBody =
+      req.body && typeof req.body === 'object' && !Array.isArray(req.body)
+        ? req.body
+        : {};
+
+    console.log('S10_RESTORE_TRACE', {
+      stage: 'input_rejected',
+      bodyKeys: Object.keys(rawBody).sort(),
+      hasId: typeof rawBody.id === 'string'
+    });
+
     return res.status(400).json({ error: '복구 요청 형식을 확인해 주세요.' });
   }
+
+  console.log('S10_RESTORE_TRACE', {
+    stage: 'input_accepted',
+    hasId: typeof input.id === 'string'
+  });
 
   const injectedDependencies =
     typeof dependencies.verifyLogin === 'function'
@@ -122,7 +138,16 @@ export async function handleRestore(req, res, dependencies = {}) {
     try {
       verifiedPolicyBackup =
         await readVerifiedPolicyBackup(dependencies);
+
+      console.log('S10_RESTORE_TRACE', {
+        stage: 'policy_backup_verified',
+        version: verifiedPolicyBackup.version
+      });
     } catch {
+      console.log('S10_RESTORE_TRACE', {
+        stage: 'policy_backup_rejected'
+      });
+
       return res.status(409).json({
         error: '검증된 정책 사본을 확인할 수 없습니다.'
       });
@@ -159,6 +184,11 @@ export async function handleRestore(req, res, dependencies = {}) {
     }
 
     const backup = backups[0];
+
+    console.log('S10_RESTORE_TRACE', {
+      stage: 'backup_selected',
+      backupCount: backups.length
+    });
 
     if (!UUID.test(backup.id ?? '')
         || !UUID.test(backup.owner_id ?? '')
@@ -201,10 +231,19 @@ export async function handleRestore(req, res, dependencies = {}) {
 
     if (restoreError) throw restoreError;
 
-    if (!restored
-        || restored.id !== backup.id
-        || restored.owner_id !== backup.owner_id
-        || contentDigest(restored.content) !== digest) {
+    const restoreMatches = Boolean(
+      restored
+      && restored.id === backup.id
+      && restored.owner_id === backup.owner_id
+      && contentDigest(restored.content) === digest
+    );
+
+    console.log('S10_RESTORE_TRACE', {
+      stage: 'restore_finished',
+      restoreMatches
+    });
+
+    if (!restoreMatches) {
       return res.status(409).json({ error: '복구 결과 검증에 실패했습니다.' });
     }
 
