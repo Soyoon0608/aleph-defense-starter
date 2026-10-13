@@ -185,8 +185,22 @@ respond.mjs는 명확한 block 후보에만 만료 시각과 근거 경보 번�
 
 1. `node --test test/resource-identity.test.mjs test/resource-access.test.mjs`를 실행합니다.
 2. `GET`·`PUT /api/notes/:id` 및 호환 notes 단건 route만 판정기 허용 후보입니다. 실제 소유자 비교는 API가 수행하고, 다른 사용자의 메모 직접 API 요청은 자료 없이 404로 거부됩니다.
-3. 단건 ID는 한 segment이며 `all`·`export`는 제외합니다. Collection 경로, query가 있는 요청, 단건 POST·PATCH·DELETE 및 collection 쓰기는 거부합니다. 공지 전용 URL은 추가하지 않습니다.
+3. 단건 ID는 한 segment이며 `all`·`export`는 제외합니다. Collection 경로, query가 있는 요청, 단건 POST·PATCH·DELETE 및 collection 쓰기는 거부합니다. 공지는 별도 구역으로 식별해 GET만 허용하고 쓰기는 거부하며, 강사 자료 구역은 모든 접근을 거부합니다.
 4. service·method·실제 경로·route가 정확히 맞지 않으면 `resource_unknown`으로 거부합니다. 요청 본문의 `role`은 권한 근거로 사용하지 않습니다.
 
 자기 점검은 로컬 가상 자료를 사용하며 실제 강사 권한이나 운영 API 판정의 증거가 아닙니다.
 다시 실행: `npm run decider:test`; 저장점 후 제출 묶음: `npm run bundle`
+
+## 9단계 도플갱어 탐지 저장점
+
+가상 조회 사건은 탐지에 필요한 최소 정보만 정리하며 메모 본문·토큰·실명 같은 값은 저장하거나 출력하지 않습니다.
+
+1. 같은 가명 사용자의 GET 사건을 사용자별로 분리해 10분 구간으로 계산합니다.
+2. 운영 사건에 네트워크 신호가 있으면 `unusual` 네트워크와 120건 초과 조회가 함께 있을 때만 복합 의심으로 탐지합니다.
+3. 정상 네트워크, 정확히 120건, 다른 사용자 사건 합산, 10분 밖의 사건은 회수 제안 대상이 아닙니다.
+4. 의심 사건은 실제 권한을 직접 바꾸지 않고 `propose_revocation`과 `burst_read` 사유를 반환합니다. 확인된 `deviceId`가 제공된 경우에는 해당 기기 하나만 결과에 포함합니다.
+5. 기존 1~8단계의 접속 허용·거부 판정 형식은 변경하지 않습니다.
+
+로컬 확인: `npm run detect:test`
+기존 판정기 확인: `npm run decider:test`
+저장점 후 제출 묶음: `npm run bundle`

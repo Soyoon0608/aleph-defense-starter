@@ -1,6 +1,7 @@
 // The student changes this check as each stage adds an attack to the same app.
 // Never return tokens, private keys, real names, or note bodies.
 export async function runAttackChecks(config) {
+  if (config.step === 9) return runStepNineChecks();
   if (config.step === 8) return runStepEightChecks(config);
   if (config.step === 7) return runStepSevenChecks();
   if (config.step === 6) return runStepSixChecks();
@@ -415,6 +416,109 @@ async function runStepEightChecks(config) {
     ...normal, service: 'notes', method: 'GET', path: `/api/notes/${noteId}`,
     route: 'GET /api/notes/:other', queryLength: 0
   }, 'deny', 'resource_unknown');
+
+  return results;
+}
+
+async function runStepNineChecks() {
+  const { detect } = await import('./detect.mjs');
+
+  const start = Date.UTC(2026, 9, 1, 0, 0, 0);
+  const subject = 'learner_fixture';
+  const deviceId = 'a'.repeat(16);
+
+  const reads = (count, {
+    owner = subject,
+    device = null,
+    network = null,
+    intervalSeconds = 2
+  } = {}) => Array.from({ length: count }, (_, index) => ({
+    at: new Date(start + index * intervalSeconds * 1000).toISOString(),
+    method: 'GET',
+    identity: { sub: owner },
+    ...(device ? { deviceId: device } : {}),
+    ...(network ? {
+      decision: 'allow',
+      signals: { network }
+    } : {})
+  }));
+
+  const results = [];
+
+  const normal = detect(reads(30));
+  if (normal.action !== 'observe') {
+    throw new Error('9단계 정상 조회가 observe로 유지되지 않았습니다.');
+  }
+  results.push({
+    attackId: 'normal_read_observed',
+    expected: '정상 조회 사건은 회수 제안 없이 observe',
+    observed: `가상 탐지 결과: ${normal.action}`
+  });
+
+  const exactLimit = detect(reads(120));
+  if (exactLimit.action !== 'observe') {
+    throw new Error('9단계 정확히 120건 조회가 잘못 탐지되었습니다.');
+  }
+  results.push({
+    attackId: 'exact_limit_observed',
+    expected: '10분 안의 정확히 120건은 observe',
+    observed: `가상 탐지 결과: ${exactLimit.action}`
+  });
+
+  const burst = detect(reads(121));
+  if (burst.action !== 'propose_revocation'
+      || burst.reasonCode !== 'burst_read'
+      || burst.subject !== subject) {
+    throw new Error('9단계 폭주 조회 회수 제안이 올바르지 않습니다.');
+  }
+  results.push({
+    attackId: 'burst_read_revocation_proposed',
+    expected: '10분 안의 121건 조회는 burst_read 회수 제안',
+    observed: `가상 탐지 결과: ${burst.action}/${burst.reasonCode}`
+  });
+
+  const usualNetwork = detect(reads(121, {
+    device: deviceId,
+    network: 'usual'
+  }));
+  if (usualNetwork.action !== 'observe') {
+    throw new Error('9단계 정상 네트워크 사건이 잘못 탐지되었습니다.');
+  }
+  results.push({
+    attackId: 'usual_network_preserved',
+    expected: '정상 네트워크의 다량 조회는 회수 제안하지 않음',
+    observed: `가상 탐지 결과: ${usualNetwork.action}`
+  });
+
+  const composite = detect(reads(121, {
+    device: deviceId,
+    network: 'unusual'
+  }));
+  if (composite.action !== 'propose_revocation'
+      || composite.reasonCode !== 'burst_read'
+      || composite.subject !== subject
+      || composite.deviceId !== deviceId) {
+    throw new Error('9단계 복합 의심 사건의 기기 회수 제안이 올바르지 않습니다.');
+  }
+  results.push({
+    attackId: 'unusual_network_burst_revocation',
+    expected: '이상 네트워크와 다량 조회가 함께 나타나면 확인된 가상 기기 하나에 회수 제안',
+    observed: `가상 탐지 결과: ${composite.action}/${composite.reasonCode}; 기기 1개 지정`
+  });
+
+  const splitUsers = detect([
+    ...reads(100),
+    ...reads(100, { owner: 'other_fixture' })
+  ].sort((a, b) => a.at.localeCompare(b.at)));
+
+  if (splitUsers.action !== 'observe') {
+    throw new Error('9단계 서로 다른 사용자의 사건이 잘못 합산되었습니다.');
+  }
+  results.push({
+    attackId: 'separate_users_not_combined',
+    expected: '서로 다른 사용자의 조회는 합산하지 않음',
+    observed: `가상 탐지 결과: ${splitUsers.action}`
+  });
 
   return results;
 }
