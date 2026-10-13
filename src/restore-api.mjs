@@ -199,70 +199,157 @@ export async function handleRestore(req, res, dependencies = {}) {
       }
     });
 
-    let backupQuery = db
-      .from('byteback_notes_backup')
-      .select('id, owner_id, title, content, content_sha256, sample_marker');
+    async function readBackupRows(expectedId) {
+      let query = db
+        .from('byteback_notes_backup')
+        .select(
+          'id, owner_id, title, content, content_sha256, sample_marker'
+        );
 
-    if (input.id) {
-      backupQuery = backupQuery.eq('id', input.id);
+      if (expectedId) {
+        query = query.eq('id', expectedId);
+      }
+
+      const {
+        data,
+        error
+      } = await query.limit(2);
+
+      if (error) throw error;
+
+      return data;
     }
 
-    const {
-      data: backups,
-      error: backupError
-    } = await backupQuery.limit(2);
+    function verifiedNoteState(row) {
+      if (!row
+          || !UUID.test(row.id ?? '')
+          || !UUID.test(row.owner_id ?? '')
+          || typeof row.title !== 'string'
+          || typeof row.content !== 'string'
+          || !SHA256.test(row.content_sha256 ?? '')) {
+        return null;
+      }
 
-    if (backupError) throw backupError;
+      const contentSha256 = contentDigest(row.content);
 
-    if (!Array.isArray(backups) || backups.length === 0) {
-      return res.status(404).json({ error: '검증된 복구 사본이 없습니다.' });
+      if (contentSha256 !== row.content_sha256) {
+        return null;
+      }
+
+      return {
+        id: row.id,
+        ownerId: row.owner_id,
+        contentSha256,
+        binding: noteBindingDigest(
+          row.id,
+          row.owner_id,
+          contentSha256
+        )
+      };
     }
 
-    if (backups.length !== 1) {
-      return res.status(409).json({ error: '복구 대상을 한 건으로 확정할 수 없습니다.' });
+    // 첫 번째 읽기: 복구 대상으로 사용할 안전 사본을 검증합니다.
+    const firstBackups = await readBackupRows(input.id);
+
+    if (!Array.isArray(firstBackups) || firstBackups.length === 0) {
+      return res.status(404).json({
+        error: '검증된 복구 사본이 없습니다.'
+      });
     }
 
-    const backup = backups[0];
+    if (firstBackups.length !== 1) {
+      return res.status(409).json({
+        error: '복구 대상을 한 건으로 확정할 수 없습니다.'
+      });
+    }
+
+    const firstBackup = firstBackups[0];
+    const firstState = verifiedNoteState(firstBackup);
 
     console.log('S10_RESTORE_TRACE', {
       stage: 'backup_selected',
-      backupCount: backups.length
+      backupCount: firstBackups.length
     });
 
-    if (!UUID.test(backup.id ?? '')
-        || !UUID.test(backup.owner_id ?? '')
-        || typeof backup.title !== 'string'
-        || typeof backup.content !== 'string'
-        || !SHA256.test(backup.content_sha256 ?? '')) {
-      return res.status(409).json({ error: '복구 사본 검증에 실패했습니다.' });
+    if (!firstState) {
+      return res.status(409).json({
+        error: '복구 사본 검증에 실패했습니다.'
+      });
     }
 
-    if (input.id && input.id !== backup.id) {
-      return res.status(409).json({ error: '복구 대상 ID가 사본과 다릅니다.' });
+    if (input.id && input.id !== firstState.id) {
+      return res.status(409).json({
+        error: '복구 대상 ID가 사본과 다릅니다.'
+      });
     }
 
-    const digest = contentDigest(backup.content);
-
-    if (digest !== backup.content_sha256) {
-      return res.status(409).json({ error: '복구 사본 내용 해시가 다릅니다.' });
-    }
-
-    const backupBinding = noteBindingDigest(
-      backup.id,
-      backup.owner_id,
-      backup.content_sha256
-    );
-
-    if (backupBinding
+    if (firstState.binding
         !== verifiedPolicyBackup.manifest.noteBindingSha256) {
       return res.status(409).json({
         error: '검증된 메모 사본과 일치하지 않습니다.'
       });
     }
 
+    // 쓰기 직전 정책 사본과 매니페스트도 다시 읽어 검증합니다.
+    let rereadPolicyBackup;
+
+    try {
+      rereadPolicyBackup =
+        await readVerifiedPolicyBackup(dependencies);
+    } catch {
+      return res.status(409).json({
+        error: '정책 사본 재검증에 실패했습니다.'
+      });
+    }
+
+    if (rereadPolicyBackup.version !== verifiedPolicyBackup.version
+        || rereadPolicyBackup.sha256 !== verifiedPolicyBackup.sha256
+        || rereadPolicyBackup.manifest.noteBindingSha256
+          !== verifiedPolicyBackup.manifest.noteBindingSha256) {
+      return res.status(409).json({
+        error: '검증 뒤 안전 사본이 변경되었습니다.'
+      });
+    }
+
+    // 쓰기 직전 메모 사본도 다시 읽습니다.
+    const rereadBackups = await readBackupRows(firstState.id);
+
+    if (!Array.isArray(rereadBackups)
+        || rereadBackups.length !== 1) {
+      return res.status(409).json({
+        error: '검증한 메모 사본을 다시 읽을 수 없습니다.'
+      });
+    }
+
+    const backup = rereadBackups[0];
+    const rereadState = verifiedNoteState(backup);
+
+    const rereadMatches = Boolean(
+      rereadState
+      && rereadState.id === firstState.id
+      && rereadState.ownerId === firstState.ownerId
+      && rereadState.contentSha256 === firstState.contentSha256
+      && rereadState.binding
+        === rereadPolicyBackup.manifest.noteBindingSha256
+    );
+
+    if (!rereadMatches) {
+      return res.status(409).json({
+        error: '재검증한 메모 사본이 처음 검증한 사본과 다릅니다.'
+      });
+    }
+
+    const digest = rereadState.contentSha256;
+
+    // 실제 쓰기 전에 버전과 변경 범위를 남깁니다.
+    console.log('S10_RESTORE_TRACE', {
+      stage: 'restore_preview',
+      policyBackupVersion: rereadPolicyBackup.version,
+      changeScope: ['byteback_notes:one-row']
+    });
+
     // 한 건만 upsert합니다. 다른 메모와 감사 기록은 건드리지 않습니다.
     const {
-      data: restored,
       error: restoreError
     } = await db
       .from('byteback_notes')
@@ -277,11 +364,26 @@ export async function handleRestore(req, res, dependencies = {}) {
             : config.sampleMarker
       }, {
         onConflict: 'id'
-      })
-      .select('id, owner_id, title, content')
-      .maybeSingle();
+      });
 
     if (restoreError) throw restoreError;
+
+    // upsert 응답이 아니라 실제 저장된 한 건을 다시 읽어 확인합니다.
+    const {
+      data: restoredRows,
+      error: restoredReadError
+    } = await db
+      .from('byteback_notes')
+      .select('id, owner_id, title, content')
+      .eq('id', backup.id)
+      .limit(2);
+
+    if (restoredReadError) throw restoredReadError;
+
+    const restored =
+      Array.isArray(restoredRows) && restoredRows.length === 1
+        ? restoredRows[0]
+        : null;
 
     const restoreMatches = Boolean(
       restored

@@ -693,6 +693,7 @@ async function runStepTenChecks(config) {
 
         if (table === 'byteback_notes') {
           let restored = null;
+          const filters = [];
 
           return {
             upsert(values) {
@@ -715,6 +716,21 @@ async function runStepTenChecks(config) {
             },
             select() {
               return this;
+            },
+            eq(field, value) {
+              filters.push([field, value]);
+              return this;
+            },
+            async limit(count) {
+              return {
+                data: liveRows
+                  .filter((row) => filters.every(
+                    ([field, value]) => row[field] === value
+                  ))
+                  .slice(0, count)
+                  .map((row) => ({ ...row })),
+                error: null
+              };
             },
             async maybeSingle() {
               return {
