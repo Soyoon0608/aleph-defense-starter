@@ -11,6 +11,7 @@ import config from '../aleph.config.json' with { type: 'json' };
 function fakeNoteQuery(rows, ignoreOwnerFilter = false) {
   const filters = [];
   let update = null;
+  let deleting = false;
   return {
     eq(field, value) {
       filters.push([field, value]);
@@ -23,10 +24,23 @@ function fakeNoteQuery(rows, ignoreOwnerFilter = false) {
       update = values;
       return this;
     },
+    delete() {
+      deleting = true;
+      return this;
+    },
+    async insert(values) {
+      rows.push(values);
+      return { error: null };
+    },
     async maybeSingle() {
-      const row = rows.find(item => filters.every(([field, value]) =>
+      const rowIndex = rows.findIndex(item => filters.every(([field, value]) =>
         (ignoreOwnerFilter && field === 'owner_id') || item[field] === value));
-      if (!row) return { data: null, error: null };
+      if (rowIndex === -1) return { data: null, error: null };
+      const row = rows[rowIndex];
+      if (deleting) {
+        rows.splice(rowIndex, 1);
+        return { data: { id: row.id }, error: null };
+      }
       if (update) Object.assign(row, update);
       return { data: update ? { id: row.id } : row, error: null };
     },
@@ -56,16 +70,17 @@ function fakeResponse() {
   };
 }
 
-async function callNotesApi({ rows, userId, method, body, single = true, ignoreOwnerFilter = false }) {
+async function callNotesApi({ rows, userId, identity, kind = 'student', method, body,
+  single = true, ignoreOwnerFilter = false, noteId = '00000000-0000-4000-8000-000000000001' }) {
   const response = fakeResponse();
   await handleNotes({
     method,
     headers: {},
-    query: single ? { id: '00000000-0000-4000-8000-000000000001' } : {},
+    query: single ? { id: noteId } : {},
     body
   }, response, single, {
     supabaseUrl: new URL(config.identityProvider.issuer).origin,
-    verifyLogin: async () => ({ userId }),
+    verifyLogin: async () => ({ kind, userId, identity }),
     createClient: () => fakeNotesClient(rows, ignoreOwnerFilter)
   });
   return response;
@@ -116,6 +131,56 @@ test('direct notes API returns A note to A and denies B read and update', async 
     body: { title: 'Changed by A', body: 'Authorized change' } });
   assert.equal(aUpdate.statusCode, 200);
   assert.equal(rows[0].content, 'Authorized change');
+});
+
+test('judge identity separates A and B when their userId is shared', async () => {
+  const noteId = '00000000-0000-4000-8000-000000000001';
+  const rows = [{
+    id: noteId, owner_id: 'a', title: 'A note', content: 'Original body'
+  }];
+  const aRead = await callNotesApi({ rows, kind: 'judge', userId: 'shared-sub',
+    identity: 'a', method: 'GET', noteId });
+  const bRead = await callNotesApi({ rows, kind: 'judge', userId: 'shared-sub',
+    identity: 'b', method: 'GET', noteId });
+  const aUpdate = await callNotesApi({ rows, kind: 'judge', userId: 'shared-sub',
+    identity: 'a', method: 'PUT', noteId,
+    body: { title: 'A updated', body: 'A body' } });
+  const bUpdate = await callNotesApi({ rows, kind: 'judge', userId: 'shared-sub',
+    identity: 'b', method: 'PUT', noteId,
+    body: { title: 'B overwrite', body: 'B body' } });
+
+  assert.equal(aRead.statusCode, 200);
+  assert.equal(bRead.statusCode, 404);
+  assert.equal(aUpdate.statusCode, 200);
+  assert.equal(bUpdate.statusCode, 404);
+  assert.equal(rows[0].content, 'A body');
+});
+
+test('judge requests without a verified A/B identity fail closed', async () => {
+  const rows = [{ id: 'note-a', owner_id: 'a', title: 'A note', content: 'A body' }];
+  for (const identity of [undefined, 'c']) {
+    const response = await callNotesApi({ rows, kind: 'judge', userId: 'shared-sub',
+      identity, method: 'GET', noteId: 'note-a' });
+    assert.equal(response.statusCode, 403);
+  }
+});
+
+test('student CRUD continues to use the verified userId owner key', async () => {
+  const rows = [];
+  const userId = 'student-sub';
+  const created = await callNotesApi({ rows, userId, method: 'POST', single: false,
+    body: { title: 'Student note', body: 'Student body' } });
+  assert.equal(created.statusCode, 201);
+  assert.equal(rows[0].owner_id, userId);
+
+  const read = await callNotesApi({ rows, userId, method: 'GET', noteId: created.body.id });
+  assert.equal(read.statusCode, 200);
+  const updated = await callNotesApi({ rows, userId, method: 'PUT', noteId: created.body.id,
+    body: { title: 'Updated note', body: 'Updated body' } });
+  assert.equal(updated.statusCode, 200);
+  const deleted = await callNotesApi({ rows, userId, method: 'DELETE', noteId: created.body.id });
+  assert.equal(deleted.statusCode, 200);
+  assert.equal(rows.length, 0);
 });
 
 test('notes API list remains scoped to the verified owner', async () => {

@@ -324,7 +324,7 @@ async function runStepEightChecks(config) {
     };
     await handleNotes({ method, headers: {}, query: { id: noteId }, body }, response, true, {
       supabaseUrl: new URL(config.identityProvider.issuer).origin,
-      verifyLogin: async () => ({ userId }),
+      verifyLogin: async () => ({ kind: 'student', userId }),
       createClient
     });
     return response;

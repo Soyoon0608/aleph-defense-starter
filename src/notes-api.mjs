@@ -10,6 +10,16 @@ export function scopeOwnedNote(query, id, ownerId) {
   return query.eq('id', id).eq('owner_id', ownerId);
 }
 
+function ownerIdForLogin(login) {
+  if (login?.kind === 'judge') {
+    return ['a', 'b'].includes(login.identity) ? login.identity : null;
+  }
+  if (login?.kind === 'student' && typeof login.userId === 'string' && login.userId) {
+    return login.userId;
+  }
+  return null;
+}
+
 export async function handleNotes(req, res, single = false, dependencies = {}) {
   res.setHeader('Cache-Control', 'no-store');
   const injectedDependencies = typeof dependencies.verifyLogin === 'function'
@@ -30,6 +40,8 @@ export async function handleNotes(req, res, single = false, dependencies = {}) {
       login = await verifier(req.headers.authorization);
     }
     if (!login) return res.status(401).json({ error: '로그인이 필요합니다.' });
+    const ownerId = ownerIdForLogin(login);
+    if (!ownerId) return res.status(403).json({ error: '자료 접근 권한이 없습니다.' });
 
     const allowed = single ? ['GET', 'PUT', 'DELETE'] : ['GET', 'POST'];
     if (!allowed.includes(req.method)) {
@@ -70,7 +82,7 @@ export async function handleNotes(req, res, single = false, dependencies = {}) {
     if (!single && req.method === 'GET') {
       const { data, error } = await db.from('byteback_notes')
         .select('id, title, content')
-        .eq('owner_id', login.userId).order('id');
+        .eq('owner_id', ownerId).order('id');
       if (error) throw error;
       return res.status(200).json(data.map(note => ({
         id: note.id, title: note.title, body: note.content
@@ -80,7 +92,7 @@ export async function handleNotes(req, res, single = false, dependencies = {}) {
     if (!single && req.method === 'POST') {
       const newId = input.id ?? randomUUID();
       const { error } = await db.from('byteback_notes').insert({
-        id: newId, owner_id: login.userId,
+        id: newId, owner_id: ownerId,
         title: input.title.trim(), content: input.body,
         sample_marker: config.sampleMarker
       });
@@ -94,9 +106,9 @@ export async function handleNotes(req, res, single = false, dependencies = {}) {
     // 4단계: 검증된 사용자 ID와 소유자가 일치하는 행만 처리합니다.
     if (req.method === 'GET') {
       const { data, error } = await scopeOwnedNote(db.from('byteback_notes')
-        .select('id, title, content, owner_id'), id, login.userId).maybeSingle();
+        .select('id, title, content, owner_id'), id, ownerId).maybeSingle();
       if (error) throw error;
-      if (!data || data.owner_id !== login.userId) {
+      if (!data || data.owner_id !== ownerId) {
         return res.status(404).json({ error: '메모가 없습니다.' });
       }
       return res.status(200).json({
@@ -106,7 +118,7 @@ export async function handleNotes(req, res, single = false, dependencies = {}) {
 
     if (req.method === 'PUT') {
       const { data, error } = await scopeOwnedNote(db.from('byteback_notes')
-        .update({ title: input.title.trim(), content: input.body }), id, login.userId)
+        .update({ title: input.title.trim(), content: input.body }), id, ownerId)
         .select('id').maybeSingle();
       if (error) throw error;
       if (!data) return res.status(404).json({ error: '메모가 없습니다.' });
@@ -114,7 +126,7 @@ export async function handleNotes(req, res, single = false, dependencies = {}) {
     }
 
     const { data, error } = await scopeOwnedNote(db.from('byteback_notes').delete(),
-      id, login.userId).select('id').maybeSingle();
+      id, ownerId).select('id').maybeSingle();
     if (error) throw error;
     if (!data) return res.status(404).json({ error: '메모가 없습니다.' });
     return res.status(200).json({ id: data.id });
