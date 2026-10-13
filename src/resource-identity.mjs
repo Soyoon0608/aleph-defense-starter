@@ -3,32 +3,21 @@ const resources = Object.freeze([
     service: 'notes',
     route: '/notes/:id',
     path: /^\/notes\/([^/?#]+)$/u,
-    namespace: 'student-note',
-    resourceType: 'student-note',
     operations: Object.freeze({ GET: 'read', PUT: 'update' })
   },
   {
-    service: 'announcements',
-    route: '/announcements/:id',
-    path: /^\/announcements\/([^/?#]+)$/u,
-    namespace: 'instructor-announcement',
-    resourceType: 'instructor-announcement',
-    operations: Object.freeze({
-      GET: 'read', POST: 'write', PUT: 'write', PATCH: 'write', DELETE: 'write'
-    })
-  },
-  {
-    service: 'announcements',
-    route: '/announcements',
-    path: /^\/announcements$/u,
-    resourceId: 'instructor-announcements',
-    resourceType: 'instructor-announcement',
-    operations: Object.freeze({ POST: 'write', PUT: 'write', PATCH: 'write', DELETE: 'write' })
+    service: 'notes',
+    route: '/api/notes/:id',
+    path: /^\/api\/notes\/([^/?#]+)$/u,
+    operations: Object.freeze({ GET: 'read', PUT: 'update' })
   }
 ]);
 
+const reservedIds = new Set(['all', 'export']);
+
 export function identifyResource(request) {
-  if (!request || typeof request !== 'object' || Array.isArray(request)) return null;
+  if (!request || typeof request !== 'object' || Array.isArray(request)
+      || request.queryLength !== 0) return null;
 
   for (const resource of resources) {
     const operation = resource.operations[request.method];
@@ -37,11 +26,11 @@ export function identifyResource(request) {
         || typeof request.path !== 'string') continue;
 
     const match = resource.path.exec(request.path);
-    if (!match) continue;
+    if (!match || reservedIds.has(match[1].toLowerCase())) continue;
 
     return {
-      resourceType: resource.resourceType,
-      resourceId: resource.resourceId ?? `${resource.namespace}:${match[1]}`,
+      resourceType: 'student-note',
+      resourceId: match[1],
       operation
     };
   }

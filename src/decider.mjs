@@ -32,7 +32,6 @@ export async function decide(request) {
   const deviceRegistered = request.deviceRegistered === true;
   const resource = identifyResource(request);
   const unknownResource = resource === null;
-  const forbiddenResource = resource?.resourceType === 'instructor-announcement';
   const unusualTime = request.signals.hour < 6 || request.signals.hour >= 22;
   const unfamiliarNetwork = request.signals.network === 'unusual';
   const recentReadBurst = request.recentEvents.some(event => event.kind === 'risk_signal'
@@ -41,9 +40,9 @@ export async function decide(request) {
   const stepUpVerified = request.stepUp?.verified === true
     && Number.isInteger(request.stepUp.authAgeSeconds)
     && request.stepUp.authAgeSeconds >= 0 && request.stepUp.authAgeSeconds <= 900;
-  const needsStepUp = deviceRegistered && !unknownResource && !forbiddenResource
+  const needsStepUp = deviceRegistered && !unknownResource
     && compositeAnomaly && !stepUpVerified;
-  const deniedByResource = unknownResource || forbiddenResource;
+  const deniedByResource = unknownResource;
 
   return {
     schema: 'aleph.decision.v1',
@@ -52,7 +51,6 @@ export async function decide(request) {
       : needsStepUp ? 'step_up' : 'allow',
     reasonCode: !deviceRegistered ? 'device_not_registered'
       : unknownResource ? 'resource_unknown'
-      : forbiddenResource ? 'resource_forbidden'
       : needsStepUp ? 'step_up_required' : 'approved',
     ruleIds: !deviceRegistered ? [RULE_IDS[0]]
       : deniedByResource ? [RULE_IDS[2]]

@@ -184,9 +184,9 @@ respond.mjs는 명확한 block 후보에만 만료 시각과 근거 경보 번�
 기존 메모 ID와 `/api/notes/:id` 주소는 유지합니다. 서버는 검증된 로그인 사용자와 메모의 저장된 `owner_id`를 다시 비교합니다.
 
 1. `node --test test/resource-identity.test.mjs test/resource-access.test.mjs`를 실행합니다.
-2. 단일 메모의 GET·PUT만 판정기 허용 후보이며, 실제 소유자 비교는 API가 수행합니다. 다른 사용자의 메모 직접 API 요청은 자료 없이 404로 거부됩니다.
-3. 메모 전체 목록·컬렉션 경로는 판정기에서 거부합니다. 공지 단건·컬렉션 경로는 읽기와 쓰기 모두 거부하며, 요청 본문의 `role`은 권한으로 인정하지 않습니다.
-4. 메서드·실제 경로·route 조합이 정확히 일치하지 않으면 `resource_unknown`으로 거부합니다.
+2. `GET`·`PUT /api/notes/:id` 및 호환 notes 단건 route만 판정기 허용 후보입니다. 실제 소유자 비교는 API가 수행하고, 다른 사용자의 메모 직접 API 요청은 자료 없이 404로 거부됩니다.
+3. 단건 ID는 한 segment이며 `all`·`export`는 제외합니다. Collection 경로, query가 있는 요청, 단건 POST·PATCH·DELETE 및 collection 쓰기는 거부합니다. 공지 전용 URL은 추가하지 않습니다.
+4. service·method·실제 경로·route가 정확히 맞지 않으면 `resource_unknown`으로 거부합니다. 요청 본문의 `role`은 권한 근거로 사용하지 않습니다.
 
 자기 점검은 로컬 가상 자료를 사용하며 실제 강사 권한이나 운영 API 판정의 증거가 아닙니다.
 다시 실행: `npm run decider:test`; 저장점 후 제출 묶음: `npm run bundle`

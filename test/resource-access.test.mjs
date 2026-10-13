@@ -86,21 +86,26 @@ async function callNotesApi({ rows, userId, identity, kind = 'student', method, 
   return response;
 }
 
-test('allows an identified student note read and update on a registered device', async () => {
+test('allows exact student note API GET and PUT candidates on a registered device', async () => {
   const normal = fixtureRequests().normal;
-  for (const [method, expectedOperation] of [['GET', 'read'], ['PUT', 'update']]) {
-    const request = {
-      ...normal,
-      method,
-      path: '/notes/note-a',
-      route: `${method} /notes/:id`
-    };
-    const resource = identifyResource(request);
-    const response = await decide(request);
-    assert.equal(resource?.operation, expectedOperation);
-    assert.equal(response.decision, 'allow');
-    assert.equal(response.reasonCode, 'approved');
-    assert.ok(RULE_IDS.includes('resource_zone'));
+  for (const [prefix, routePrefix] of [['/notes', '/notes'], ['/api/notes', '/api/notes']]) {
+    for (const [method, expectedOperation] of [['GET', 'read'], ['PUT', 'update']]) {
+      const request = {
+        ...normal,
+        service: 'notes',
+        method,
+        path: `${prefix}/note-a`,
+        route: `${method} ${routePrefix}/:id`,
+        queryLength: 0
+      };
+      const resource = identifyResource(request);
+      const response = await decide(request);
+      assert.equal(resource?.operation, expectedOperation);
+      assert.equal(resource?.resourceType, 'student-note');
+      assert.equal(response.decision, 'allow');
+      assert.equal(response.reasonCode, 'approved');
+      assert.ok(RULE_IDS.includes('resource_zone'));
+    }
   }
 });
 
@@ -222,41 +227,57 @@ test('8-stage bundle check covers the virtual resource-zone cases', async () => 
     'cross_note_api_update',
     'body_role_rejected',
     'note_collection_read_denied',
-    'note_collection_create_denied',
-    'announcement_get_denied',
-    'announcement_post_denied',
-    'announcement_put_denied',
-    'announcement_patch_denied',
-    'announcement_delete_denied',
-    'announcement_collection_post_denied',
+    'api_note_collection_read_denied',
+    'functional_note_path__notes_all_denied',
+    'functional_note_path__api_notes_all_denied',
+    'functional_note_path__notes_export_denied',
+    'functional_note_path__api_notes_export_denied',
+    'note_query_selection_denied',
     'unknown_resource_path',
     'resource_route_mismatch'
   ]);
 });
 
-test('denies note collections, all announcements, and unknown resource tuples', async () => {
+test('denies note collections, reserved paths, unsupported methods, and mismatches', async () => {
   const normal = fixtureRequests().normal;
-  for (const method of ['GET', 'POST']) {
-    const collection = await decide({
-      ...normal, method, path: '/notes', route: `${method} /notes`
+  const denyCases = [
+    ['GET', '/notes', 'GET /notes', 0],
+    ['GET', '/api/notes', 'GET /api/notes', 0],
+    ['POST', '/notes', 'POST /notes', 0],
+    ['PUT', '/notes', 'PUT /notes', 0],
+    ['PATCH', '/notes', 'PATCH /notes', 0],
+    ['DELETE', '/notes', 'DELETE /notes', 0],
+    ['POST', '/api/notes', 'POST /api/notes', 0],
+    ['PUT', '/api/notes', 'PUT /api/notes', 0],
+    ['PATCH', '/api/notes', 'PATCH /api/notes', 0],
+    ['DELETE', '/api/notes', 'DELETE /api/notes', 0],
+    ['GET', '/notes/all', 'GET /notes/:id', 0],
+    ['GET', '/api/notes/all', 'GET /api/notes/:id', 0],
+    ['GET', '/notes/export', 'GET /notes/:id', 0],
+    ['GET', '/api/notes/export', 'GET /api/notes/:id', 0],
+    ['POST', '/notes/note-a', 'POST /notes/:id', 0],
+    ['PATCH', '/notes/note-a', 'PATCH /notes/:id', 0],
+    ['DELETE', '/notes/note-a', 'DELETE /notes/:id', 0],
+    ['POST', '/api/notes/note-a', 'POST /api/notes/:id', 0],
+    ['PATCH', '/api/notes/note-a', 'PATCH /api/notes/:id', 0],
+    ['DELETE', '/api/notes/note-a', 'DELETE /api/notes/:id', 0],
+    ['GET', '/api/notes/note-a', 'GET /api/notes/:id', 6],
+    ['GET', '/api/notes/note-a', 'GET /api/notes/:other', 0],
+    ['GET', '/api/notes/note-a', 'GET /api/notes/:id', 0, 'announcements']
+  ];
+  for (const [method, path, route, queryLength, service = 'notes'] of denyCases) {
+    const response = await decide({
+      ...normal, service, method, path, route, queryLength
     });
-    assert.equal(collection.decision, 'deny');
-    assert.equal(collection.reasonCode, 'resource_unknown');
-  }
-
-  for (const method of ['GET', 'POST', 'PUT', 'PATCH', 'DELETE']) {
-    const announcement = await decide({
-      ...normal, service: 'announcements', method,
-      path: '/announcements/notice-a', route: `${method} /announcements/:id`
-    });
-    assert.equal(announcement.decision, 'deny');
-    assert.equal(announcement.reasonCode, 'resource_forbidden');
+    assert.equal(response.decision, 'deny', `${method} ${path}`);
+    assert.equal(response.reasonCode, 'resource_unknown', `${method} ${path}`);
   }
 
   for (const request of [
-    { ...normal, method: 'GET', path: '/notes/note-a/export',
-      route: 'GET /notes/:id/export' },
-    { ...normal, method: 'GET', path: '/notes/note-a', route: 'GET /notes/:other' }
+    { ...normal, method: 'GET', path: '/api/notes/note-a/export',
+      route: 'GET /api/notes/:id/export', queryLength: 0 },
+    { ...normal, method: 'GET', path: '/api/notes/note-a/',
+      route: 'GET /api/notes/:id', queryLength: 0 }
   ]) {
     const response = await decide(request);
     assert.equal(response.decision, 'deny');

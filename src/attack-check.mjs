@@ -334,10 +334,7 @@ async function runStepEightChecks(config) {
     const resource = identifyResource(request);
     const response = await decide(request);
     const resourceMatches = reasonCode === 'resource_unknown'
-      ? resource === null
-      : reasonCode === 'resource_forbidden'
-        ? resource?.resourceType === 'instructor-announcement'
-        : resource !== null;
+      ? resource === null : resource !== null;
     if (!resourceMatches || response.decision !== decision || response.reasonCode !== reasonCode) {
       throw new Error(`8단계 판정 점검 실패: ${attackId}`);
     }
@@ -345,7 +342,8 @@ async function runStepEightChecks(config) {
   };
 
   const selfRead = {
-    ...normal, method: 'GET', path: `/notes/${noteId}`, route: 'GET /notes/:id'
+    ...normal, service: 'notes', method: 'GET', path: `/api/notes/${noteId}`,
+    route: 'GET /api/notes/:id', queryLength: 0
   };
   const selfReadApi = await callApi('fixture-owner-a', 'GET');
   await checkDecision('self_note_read', '자기 메모 읽기 허용', selfRead, 'allow', 'approved');
@@ -354,7 +352,8 @@ async function runStepEightChecks(config) {
     observed: `가상 API 응답: HTTP ${selfReadApi.statusCode}` });
 
   const selfUpdate = {
-    ...normal, method: 'PUT', path: `/notes/${noteId}`, route: 'PUT /notes/:id'
+    ...normal, service: 'notes', method: 'PUT', path: `/api/notes/${noteId}`,
+    route: 'PUT /api/notes/:id', queryLength: 0
   };
   const selfUpdateApi = await callApi('fixture-owner-a', 'PUT', { title: '가상 메모', body: '수정된 가상 본문' });
   await checkDecision('self_note_update', '자기 메모 수정 허용', selfUpdate, 'allow', 'approved');
@@ -385,29 +384,36 @@ async function runStepEightChecks(config) {
 
   for (const [method, path, route, attackId, expected] of [
     ['GET', '/notes', 'GET /notes', 'note_collection_read_denied', '메모 전체 목록 거부'],
-    ['POST', '/notes', 'POST /notes', 'note_collection_create_denied', '메모 컬렉션 경로 거부'],
+    ['GET', '/api/notes', 'GET /api/notes', 'api_note_collection_read_denied',
+      '실제 notes API 전체 목록 거부'],
   ]) {
     await checkDecision(attackId, expected, { ...normal, method, path, route },
       'deny', 'resource_unknown');
   }
 
-  for (const method of ['GET', 'POST', 'PUT', 'PATCH', 'DELETE']) {
-    await checkDecision(`announcement_${method.toLowerCase()}_denied`,
-      '공지 경로 접근 거부', {
-        ...normal, service: 'announcements', method, path: '/announcements/demo',
-        route: `${method} /announcements/:id`
-      }, 'deny', 'resource_forbidden');
+  for (const [path, route] of [
+    ['/notes/all', 'GET /notes/:id'],
+    ['/api/notes/all', 'GET /api/notes/:id'],
+    ['/notes/export', 'GET /notes/:id'],
+    ['/api/notes/export', 'GET /api/notes/:id']
+  ]) {
+    await checkDecision(`functional_note_path_${path.replaceAll('/', '_')}_denied`,
+      '기능성 고정 경로 거부', {
+        ...normal, service: 'notes', method: 'GET', path, route, queryLength: 0
+      }, 'deny', 'resource_unknown');
   }
-  await checkDecision('announcement_collection_post_denied', '공지 컬렉션 쓰기 거부', {
-    ...normal, service: 'announcements', method: 'POST', path: '/announcements',
-    route: 'POST /announcements'
-  }, 'deny', 'resource_forbidden');
+
+  await checkDecision('note_query_selection_denied', 'query 기능 선택 요청 거부', {
+    ...normal, service: 'notes', method: 'GET', path: `/api/notes/${noteId}`,
+    route: 'GET /api/notes/:id', queryLength: 10
+  }, 'deny', 'resource_unknown');
   await checkDecision('unknown_resource_path', '알 수 없는 경로 거부', {
-    ...normal, method: 'GET', path: `/notes/${noteId}/export`,
-    route: 'GET /notes/:id/export'
+    ...normal, service: 'notes', method: 'GET', path: `/api/notes/${noteId}/extra`,
+    route: 'GET /api/notes/:id/extra', queryLength: 0
   }, 'deny', 'resource_unknown');
   await checkDecision('resource_route_mismatch', '경로와 route 불일치 거부', {
-    ...normal, method: 'GET', path: `/notes/${noteId}`, route: 'GET /notes/:other'
+    ...normal, service: 'notes', method: 'GET', path: `/api/notes/${noteId}`,
+    route: 'GET /api/notes/:other', queryLength: 0
   }, 'deny', 'resource_unknown');
 
   return results;
