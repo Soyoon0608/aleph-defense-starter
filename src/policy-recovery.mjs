@@ -1,6 +1,9 @@
 import { createHash } from 'node:crypto';
+import safeManifest from '../backups/manifest.safe.json' with { type: 'json' };
 
 const BACKUP_SCHEMA = 'aleph.defense.safe-policy.v1';
+const MANIFEST_SCHEMA =
+  'aleph.defense.safe-backup-manifest.v1';
 
 function canonical(value) {
   if (Array.isArray(value)) {
@@ -58,6 +61,13 @@ export function verifySafePolicyBackup(backup) {
 
   if (actualDigest !== backup.sha256) {
     throw new Error('policy_backup_verification_failed');
+  }
+
+  if (!safeManifest
+      || safeManifest.schema !== MANIFEST_SCHEMA
+      || safeManifest.policyVersion !== backup.version
+      || safeManifest.policySha256 !== actualDigest) {
+    throw new Error('policy_backup_not_trusted');
   }
 
   return {
