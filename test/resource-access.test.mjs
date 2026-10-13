@@ -284,3 +284,33 @@ test('denies note collections, reserved paths, unsupported methods, and mismatch
     assert.equal(response.reasonCode, 'resource_unknown');
   }
 });
+test('announcement reads are allowed and announcement writes are denied by resource zone', async () => {
+  const { normal } = fixtureRequests();
+
+  const read = await decide({
+    ...normal,
+    service: 'announcements',
+    method: 'GET',
+    path: '/api/announcements/notice-a',
+    route: 'GET /api/announcements/:id',
+    queryLength: 0
+  });
+
+  assert.equal(read.decision, 'allow');
+  assert.equal(read.reasonCode, 'approved');
+
+  for (const method of ['PUT', 'POST', 'PATCH', 'DELETE']) {
+    const response = await decide({
+      ...normal,
+      service: 'announcements',
+      method,
+      path: '/api/announcements/notice-a',
+      route: `${method} /api/announcements/:id`,
+      queryLength: 0
+    });
+
+    assert.equal(response.decision, 'deny', method);
+    assert.equal(response.reasonCode, 'resource_forbidden', method);
+    assert.deepEqual(response.ruleIds, ['resource_zone'], method);
+  }
+});

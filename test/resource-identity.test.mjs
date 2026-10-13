@@ -54,3 +54,25 @@ test('does not infer resources from another service or mismatched request tuples
     assert.equal(identifyResource(request), null);
   }
 });
+
+test('identifies announcement reads and writes as the announcement resource zone', () => {
+  for (const [method, operation] of [
+    ['GET', 'read'],
+    ['PUT', 'write'],
+    ['POST', 'write'],
+    ['PATCH', 'write'],
+    ['DELETE', 'write']
+  ]) {
+    assert.deepEqual(identifyResource({
+      service: 'announcements',
+      method,
+      route: `${method} /api/announcements/:id`,
+      path: '/api/announcements/notice-a',
+      queryLength: 0
+    }), {
+      resourceType: 'instructor-announcement',
+      resourceId: 'notice-a',
+      operation
+    });
+  }
+});

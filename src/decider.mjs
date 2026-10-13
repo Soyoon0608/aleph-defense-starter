@@ -42,7 +42,11 @@ export async function decide(request) {
     && request.stepUp.authAgeSeconds >= 0 && request.stepUp.authAgeSeconds <= 900;
   const needsStepUp = deviceRegistered && !unknownResource
     && compositeAnomaly && !stepUpVerified;
-  const deniedByResource = unknownResource;
+  // 8단계 자원 구역 정책:
+  // 공지는 읽기만 허용하고 쓰기는 resource_zone 규칙으로 명시적으로 거부합니다.
+  const deniedByZone = resource?.resourceType === 'instructor-announcement'
+    && resource.operation !== 'read';
+  const deniedByResource = unknownResource || deniedByZone;
 
   return {
     schema: 'aleph.decision.v1',
@@ -51,6 +55,7 @@ export async function decide(request) {
       : needsStepUp ? 'step_up' : 'allow',
     reasonCode: !deviceRegistered ? 'device_not_registered'
       : unknownResource ? 'resource_unknown'
+      : deniedByZone ? 'resource_forbidden'
       : needsStepUp ? 'step_up_required' : 'approved',
     ruleIds: !deviceRegistered ? [RULE_IDS[0]]
       : deniedByResource ? [RULE_IDS[2]]

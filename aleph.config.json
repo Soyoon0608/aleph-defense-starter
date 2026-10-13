@@ -10,11 +10,9 @@
     "jwksUrl": "https://qmscbqyufehupfhombmu.supabase.co/auth/v1/.well-known/jwks.json"
   },
   "allowedRoutes": [
-    "GET /api/notes",
-    "POST /api/notes",
     "GET /api/notes/:id",
     "PUT /api/notes/:id",
-    "DELETE /api/notes/:id"
+    "GET /api/announcements/:id"
   ],
   "originalApiUrl": "https://qmscbqyufehupfhombmu.supabase.co/rest/v1/byteback_notes",
   "restoreRoute": null

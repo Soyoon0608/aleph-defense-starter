@@ -1,15 +1,53 @@
 const resources = Object.freeze([
   {
     service: 'notes',
+    resourceType: 'student-note',
     route: '/notes/:id',
     path: /^\/notes\/([^/?#]+)$/u,
-    operations: Object.freeze({ GET: 'read', PUT: 'update' })
+    operations: Object.freeze({
+      GET: 'read',
+      PUT: 'update'
+    })
   },
   {
     service: 'notes',
+    resourceType: 'student-note',
     route: '/api/notes/:id',
     path: /^\/api\/notes\/([^/?#]+)$/u,
-    operations: Object.freeze({ GET: 'read', PUT: 'update' })
+    operations: Object.freeze({
+      GET: 'read',
+      PUT: 'update'
+    })
+  },
+
+  // 8단계: 반 공지 구역
+  // GET뿐 아니라 쓰기 요청도 "공지 구역"으로 식별해서
+  // decider가 resource-zone 규칙으로 명시적으로 거부할 수 있게 합니다.
+  {
+    service: 'announcements',
+    resourceType: 'instructor-announcement',
+    route: '/announcements/:id',
+    path: /^\/announcements\/([^/?#]+)$/u,
+    operations: Object.freeze({
+      GET: 'read',
+      POST: 'write',
+      PUT: 'write',
+      PATCH: 'write',
+      DELETE: 'write'
+    })
+  },
+  {
+    service: 'announcements',
+    resourceType: 'instructor-announcement',
+    route: '/api/announcements/:id',
+    path: /^\/api\/announcements\/([^/?#]+)$/u,
+    operations: Object.freeze({
+      GET: 'read',
+      POST: 'write',
+      PUT: 'write',
+      PATCH: 'write',
+      DELETE: 'write'
+    })
   }
 ]);
 
@@ -21,15 +59,22 @@ export function identifyResource(request) {
 
   for (const resource of resources) {
     const operation = resource.operations[request.method];
-    if (request.service !== resource.service || !operation
+
+    if (request.service !== resource.service
+        || !operation
         || request.route !== `${request.method} ${resource.route}`
-        || typeof request.path !== 'string') continue;
+        || typeof request.path !== 'string') {
+      continue;
+    }
 
     const match = resource.path.exec(request.path);
-    if (!match || reservedIds.has(match[1].toLowerCase())) continue;
+
+    if (!match || reservedIds.has(match[1].toLowerCase())) {
+      continue;
+    }
 
     return {
-      resourceType: 'student-note',
+      resourceType: resource.resourceType,
       resourceId: match[1],
       operation
     };
