@@ -16,7 +16,7 @@ export function deploymentIdentity(env, config) {
       || config.step < 1 || config.step > 10
       || (config.step >= 10
         && (typeof config.restoreRoute !== 'string'
-          || !/^\/api\/[A-Za-z0-9._/-]+$/u.test(config.restoreRoute)))
+          || !/^\/api\/(?:[A-Za-z0-9._-]+|:[A-Za-z][A-Za-z0-9_]*)(?:\/(?:[A-Za-z0-9._-]+|:[A-Za-z][A-Za-z0-9_]*))*$/u.test(config.restoreRoute)))
       || typeof config.judgeIssuer !== 'string'
       || !/^https:\/\/[a-z0-9-]+\.up\.railway\.app\/defense\/judge$/iu.test(config.judgeIssuer)
       || typeof config.sampleMarker !== 'string'

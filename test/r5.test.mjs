@@ -36,7 +36,7 @@ test('build identity supports stages 6 through 10 with existing API metadata', (
     ...config,
     allowedRoutes: ['GET /api/notes/:id'],
     originalApiUrl: 'https://student.supabase.co/rest/v1/notes',
-    restoreRoute: '/api/restore',
+    restoreRoute: '/api/restore/:noteId',
   };
   for (const step of [6, 7, 8, 9, 10]) {
     const identity = deploymentIdentity(env, { ...stageConfig, step });
