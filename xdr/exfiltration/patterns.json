@@ -1,0 +1,30 @@
+{
+  "schema": "aleph.xdr.patterns.v1",
+  "moduleKey": "exfiltration",
+  "basis": {
+    "techniques": [
+      "T1041",
+      "T1048"
+    ]
+  },
+  "patterns": [
+    {
+      "id": "large_transfer_new_destination",
+      "name": "처음 보는 목적지로 대용량 전송",
+      "condition": "평소에 없던 목적지로 큰 파일이나 많은 자료가 한 번에 또는 반복해서 전송된다.",
+      "evidence": "MITRE ATT&CK T1041은 기존 명령·제어 통로를 이용한 자료 유출을 다룬다."
+    },
+    {
+      "id": "off_hours_archive_transfer",
+      "name": "업무 시간 밖 압축 파일 반출",
+      "condition": "업무나 수업 시간 밖에 압축 파일이 외부 또는 처음 보는 목적지로 전송된다.",
+      "evidence": "MITRE ATT&CK T1048은 정상 통로와 다른 프로토콜이나 경로를 이용한 자료 유출을 다룬다."
+    },
+    {
+      "id": "unusual_channel_transfer",
+      "name": "낯선 통로나 포트를 통한 반복 전송",
+      "condition": "평소 사용하지 않던 포트나 명령 통로로 큰 파일 또는 다수의 자료가 반복 전송된다.",
+      "evidence": "T1041과 T1048은 공격자가 통신 채널이나 다른 전송 방식을 이용해 자료를 외부로 빼내는 행위를 설명한다."
+    }
+  ]
+}

@@ -426,3 +426,21 @@ CVE-2021-44228(Log4Shell) 형태의 알려진 취약점 악용 경보를 분류�
 이 시험 결과는 실제 운영 심판 판정의 증거가 아닙니다.
 
 다시 실행: `npm run xdr:run -- privilege`
+
+## 보너스 xdr-06 저장점
+
+외부 전송 경보를 분석해 자료 반출 가능성을 분류합니다.
+`xdr/exfiltration/decide.mjs`는 다른 파일이나 패키지를 불러오지 않고 경보 하나를 독립적으로 판단합니다.
+처음 보는 목적지로의 대용량 전송, 업무 시간 밖 압축 파일 반출, 낯선 통로나 포트의 반복 전송은 명확도에 따라 block 또는 alert로 분류하고 정상 이벤트는 record로 남깁니다.
+
+시험 경보 30건 결과:
+- block 10건
+- alert 9건
+- record 11건
+- 정상 이벤트 block 0건
+
+`respond.mjs`는 block 판정에 대해서만 목적지 주소, 근거 경보 ID, 만료 시각이 있는 deny 후보를 만듭니다.
+기존 `src/decider.mjs`의 규칙은 변경하지 않았습니다.
+이 시험 결과는 실제 운영 심판 판정의 증거가 아닙니다.
+
+다시 실행: `npm run xdr:run -- exfiltration`
