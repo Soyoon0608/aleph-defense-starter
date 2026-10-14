@@ -1,0 +1,28 @@
+{
+  "schema": "aleph.xdr.patterns.v1",
+  "moduleKey": "known-cve",
+  "basis": {
+    "vulnerability": "CVE-2021-44228",
+    "technique": "T1190"
+  },
+  "patterns": [
+    {
+      "id": "jndi_lookup_in_header",
+      "name": "요청 머리글의 원격 JNDI 조회 구문",
+      "condition": "data.useragent 같은 요청 머리글 값에 ${jndi:...://...} 형태의 완전한 원격 조회 구문이 있다.",
+      "evidence": "CVE-2021-44228은 공격자가 로그에 들어가는 값을 제어해 JNDI 원격 조회를 유발하는 악용 형태와 관련된다."
+    },
+    {
+      "id": "jndi_lookup_in_param",
+      "name": "요청 인자의 원격 JNDI 조회 구문",
+      "condition": "data.url의 질의 인자에 ${jndi:...://...} 형태의 완전한 원격 조회 구문이 있다.",
+      "evidence": "MITRE ATT&CK T1190은 외부에 노출된 애플리케이션의 취약점을 악용해 접근하는 행위를 다룬다."
+    },
+    {
+      "id": "known_scanner_trace",
+      "name": "알려진 취약점 점검 도구의 흔적",
+      "condition": "경보 설명이나 요청 정보에 알려진 취약점 점검 또는 스캐닝 흔적이 있지만 완전한 원격 조회 구문은 없을 수 있다.",
+      "evidence": "취약점 점검 흔적은 악용 시도 가능성을 높이는 보조 신호이므로 단독으로 명확한 공격으로 단정하지 않는다."
+    }
+  ]
+}
