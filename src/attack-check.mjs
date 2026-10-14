@@ -1,6 +1,7 @@
 // The student changes this check as each stage adds an attack to the same app.
 // Never return tokens, private keys, real names, or note bodies.
 export async function runAttackChecks(config) {
+  if (config.step === 11) return runStepElevenChecks(config);
   if (config.step === 10) return runStepTenChecks(config);
   if (config.step === 9) return runStepNineChecks();
   if (config.step === 8) return runStepEightChecks(config);
@@ -990,6 +991,205 @@ async function runStepTenChecks(config) {
     attackId: 'post_restore_stage_1_9_replay',
     expected: '실제 복구 뒤 1~9단계 정상·금지 요청을 다시 확인',
     observed: '미실행: 실제 대표 공격 재전송은 심판 판정에서 확인'
+  });
+
+  return results;
+}
+
+async function runStepElevenChecks(config) {
+  const results = await runStepTenChecks(config);
+
+  const {
+    generateKeyPairSync,
+    randomUUID,
+    sign
+  } = await import('node:crypto');
+
+  const {
+    issueAppCertificate,
+    proofMessage,
+    verifyAppProof
+  } = await import('./app-proof.mjs');
+
+  const secret =
+    'stage11-local-attack-fixture';
+
+  const identity = {
+    userId:
+      '11111111-1111-4111-8111-111111111111'
+  };
+
+  const context = {
+    classId: 'byteback-local-v1',
+    projectId: 'a'.repeat(32),
+    subjectId: 'fixture-subject',
+    deviceId: '0123456789abcdef'
+  };
+
+  const {
+    publicKey,
+    privateKey
+  } = generateKeyPairSync('ec', {
+    namedCurve: 'prime256v1'
+  });
+
+  const approval = issueAppCertificate({
+    identity,
+    secret,
+    context,
+    publicKey: publicKey.export({
+      format: 'jwk'
+    }),
+    expiresAt:
+      Date.now() + 5 * 60 * 1000
+  });
+
+  const noteId =
+    'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+
+  const signedRequest = ({
+    method = 'GET',
+    url = `/api/notes/${noteId}`,
+    body
+  } = {}) => {
+    const time = String(Date.now());
+    const nonce = randomUUID();
+
+    const signature = sign(
+      'sha256',
+      Buffer.from(
+        proofMessage({
+          method,
+          url,
+          body,
+          certificate:
+            approval.certificate,
+          time,
+          nonce
+        })
+      ),
+      {
+        key: privateKey,
+        dsaEncoding: 'ieee-p1363'
+      }
+    ).toString('base64url');
+
+    return {
+      method,
+      url,
+      body,
+      headers: {
+        'x-byteback-app-certificate':
+          approval.certificate,
+        'x-byteback-app-signature':
+          signature,
+        'x-byteback-app-time': time,
+        'x-byteback-app-nonce': nonce
+      }
+    };
+  };
+
+  const exact = await verifyAppProof({
+    req: signedRequest(),
+    identity,
+    secret,
+    context
+  });
+
+  if (!exact) {
+    throw new Error(
+      '승인 기기의 정확한 서명 요청이 거부되었습니다.'
+    );
+  }
+
+  results.push({
+    attackId:
+      'approved_device_signed_request',
+    expected:
+      '승인된 기기의 정확한 method·path·body 서명은 검증 성공',
+    observed:
+      '로컬 요청 서명 검증: 허용'
+  });
+
+  const unsigned = await verifyAppProof({
+    req: {
+      method: 'GET',
+      url: `/api/notes/${noteId}`,
+      headers: {}
+    },
+    identity,
+    secret,
+    context
+  });
+
+  if (unsigned) {
+    throw new Error(
+      '서명 없는 보호 요청이 허용되었습니다.'
+    );
+  }
+
+  results.push({
+    attackId:
+      'unsigned_protected_request_denied',
+    expected:
+      '서명 없는 보호 요청은 거부',
+    observed:
+      '로컬 요청 서명 검증: 거부'
+  });
+
+  const changedPath = signedRequest();
+  changedPath.url =
+    '/api/notes/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+
+  if (await verifyAppProof({
+    req: changedPath,
+    identity,
+    secret,
+    context
+  })) {
+    throw new Error(
+      '서명 뒤 변경한 요청 경로가 허용되었습니다.'
+    );
+  }
+
+  results.push({
+    attackId: 'signed_path_change_denied',
+    expected:
+      '서명 뒤 요청 경로를 바꾸면 거부',
+    observed:
+      '로컬 요청 서명 검증: 경로 변조 거부'
+  });
+
+  const changedBody = signedRequest({
+    method: 'PUT',
+    body: {
+      title: '원본',
+      body: '원본'
+    }
+  });
+
+  changedBody.body = {
+    title: '변조',
+    body: '원본'
+  };
+
+  if (await verifyAppProof({
+    req: changedBody,
+    identity,
+    secret,
+    context
+  })) {
+    throw new Error(
+      '서명 뒤 변경한 PUT 본문이 허용되었습니다.'
+    );
+  }
+
+  results.push({
+    attackId: 'signed_body_change_denied',
+    expected:
+      '서명 뒤 PUT 본문을 바꾸면 거부',
+    observed:
+      '로컬 요청 서명 검증: 본문 변조 거부'
   });
 
   return results;

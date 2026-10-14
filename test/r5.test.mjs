@@ -31,26 +31,26 @@ test('build identity uses Vercel Git and deployment metadata', () => {
   assert.throws(() => deploymentIdentity({ ...env, VERCEL_GIT_COMMIT_SHA: 'short' }, config));
 });
 
-test('build identity supports stages 6 through 10 with existing API metadata', () => {
+test('build identity supports stages 6 through 11 with existing API metadata', () => {
   const stageConfig = {
     ...config,
     allowedRoutes: ['GET /api/notes/:id'],
     originalApiUrl: 'https://student.supabase.co/rest/v1/notes',
     restoreRoute: '/api/restore/:noteId',
   };
-  for (const step of [6, 7, 8, 9, 10]) {
+  for (const step of [6, 7, 8, 9, 10, 11]) {
     const identity = deploymentIdentity(env, { ...stageConfig, step });
     assert.equal(identity.step, step);
     assert.deepEqual(identity.allowedRoutes, stageConfig.allowedRoutes);
     assert.equal(identity.originalApiUrl, stageConfig.originalApiUrl);
-    if (step === 10) {
+    if (step >= 10) {
       assert.equal(identity.restoreRoute, stageConfig.restoreRoute);
     } else {
       assert.equal(identity.restoreRoute, undefined);
     }
     assert.equal(identity.commit, 'a'.repeat(40));
   }
-  assert.throws(() => deploymentIdentity(env, { ...stageConfig, step: 11 }));
+  assert.throws(() => deploymentIdentity(env, { ...stageConfig, step: 12 }));
 });
 
 test('first attack check reads public data.json without credentials', async () => {

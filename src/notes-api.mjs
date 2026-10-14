@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
 import { createLoginVerifier } from './verify-login.mjs';
 import config from '../aleph.config.json' with { type: 'json' };
+import { enforceAppProof } from './app-proof.mjs';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
 let verifier;
@@ -72,6 +73,21 @@ export async function handleNotes(req, res, single = false, dependencies = {}) {
            (typeof input.id !== 'string' || !UUID.test(input.id)))) {
         return res.status(400).json({ error: '제목·본문·ID 형식을 확인해 주세요.' });
       }
+    }
+
+    // 11단계: 브라우저의 보호 요청은 승인된 기기 키로
+    // method·path·body 전체를 서명해야 합니다.
+    // 로컬 의존성 주입 시험은 별도의 앱 서명 시험으로 검증합니다.
+    if (config.step >= 11 && !injectedDependencies) {
+      const proofAllowed = await enforceAppProof({
+        req,
+        res,
+        identity: login,
+        secret: key,
+        config
+      });
+
+      if (!proofAllowed) return;
     }
 
     const client = injectedDependencies ? dependencies.createClient : createClient;

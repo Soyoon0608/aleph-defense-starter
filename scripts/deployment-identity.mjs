@@ -13,7 +13,7 @@ export function deploymentIdentity(env, config) {
       || !REPO.test(repo || '') || repo === '.' || repo === '..'
       || repo.toLowerCase().endsWith('.git') || !SHA.test(commit || '')
       || !HOST.test(host || '') || !Number.isInteger(config?.step)
-      || config.step < 1 || config.step > 10
+      || config.step < 1 || config.step > 11
       || (config.step >= 10
         && (typeof config.restoreRoute !== 'string'
           || !/^\/api\/(?:[A-Za-z0-9._-]+|:[A-Za-z][A-Za-z0-9_]*)(?:\/(?:[A-Za-z0-9._-]+|:[A-Za-z][A-Za-z0-9_]*))*$/u.test(config.restoreRoute)))
