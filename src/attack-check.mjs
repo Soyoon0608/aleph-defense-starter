@@ -769,20 +769,26 @@ async function runStepTenChecks(config) {
     liveRows,
     backupRows,
     identity = 'b',
-    body
+    noteId,
+    body = {}
   }) {
     const response = fakeResponse();
 
     await handleRestore({
       method: 'POST',
       headers: {},
+      query: {
+        noteId: noteId ?? backupRows[0]?.id
+      },
       body
     }, response, {
       supabaseUrl:
         new URL(config.identityProvider.issuer).origin,
       verifyLogin: async () => ({
         kind: 'judge',
-        userId: 'judge-fixture',
+        userId:
+          backupRows[0]?.owner_id
+          ?? '00000000-0000-4000-8000-0000000000b0',
         identity
       }),
       createClient:
@@ -819,7 +825,7 @@ async function runStepTenChecks(config) {
   const modifiedResponse = await callRestore({
     liveRows: modifiedRows,
     backupRows: [noteBackup],
-    body: { id: noteBackup.id }
+    noteId: noteBackup.id
   });
 
   const modifiedRestored = modifiedRows.find(
