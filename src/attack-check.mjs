@@ -1,7 +1,17 @@
+import { runAttackRecords } from './stage12-records.mjs';
+export { runAttackRecords };
+
 // The student changes this check as each stage adds an attack to the same app.
 // Never return tokens, private keys, real names, or note bodies.
 export async function runAttackChecks(config) {
-  if (config.step === 12) return runStepElevenChecks({ ...config, step: 11 });
+  if (config.step === 12) {
+    const rows = await runAttackRecords(config);
+    return rows.map(({ attackId, expected, observed }) => ({
+      attackId,
+      expected,
+      observed
+    }));
+  }
   if (config.step === 11) return runStepElevenChecks(config);
   if (config.step === 10) return runStepTenChecks(config);
   if (config.step === 9) return runStepNineChecks();
