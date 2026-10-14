@@ -27,6 +27,65 @@ function response() {
 
 function fakeCreateClient(liveRows, backupRows) {
   return () => ({
+    async rpc(name, args) {
+      if (name !== 'byteback_restore_note') {
+        return {
+          data: null,
+          error: new Error(`unexpected_rpc:${name}`)
+        };
+      }
+
+      const backup = backupRows.find(
+        (row) =>
+          row.id === args.p_id
+          && row.owner_id === args.p_owner
+      );
+
+      if (!backup
+          || contentDigest(backup.content) !== backup.content_sha256) {
+        return {
+          data: null,
+          error: new Error('verified_backup_not_found')
+        };
+      }
+
+      const existing = liveRows.find(
+        (row) => row.id === args.p_id
+      );
+
+      if (existing && existing.owner_id !== args.p_owner) {
+        return {
+          data: null,
+          error: new Error('restore_owner_mismatch')
+        };
+      }
+
+      if (existing) {
+        existing.title = backup.title;
+        existing.content = backup.content;
+        existing.sample_marker = backup.sample_marker;
+      } else {
+        liveRows.push({
+          id: backup.id,
+          owner_id: backup.owner_id,
+          title: backup.title,
+          content: backup.content,
+          sample_marker: backup.sample_marker
+        });
+      }
+
+      return {
+        data: [{
+          id: backup.id,
+          restored: true,
+          content_hash: backup.content_sha256,
+          record_hash: null,
+          owner_matched: true
+        }],
+        error: null
+      };
+    },
+
     from(table) {
       if (table === 'byteback_notes_backup') {
         const filters = [];
@@ -176,7 +235,7 @@ test('restores one modified B note from the verified backup', async () => {
   const liveRows = [
     {
       id: backup.id,
-      owner_id: 'b',
+      owner_id: backup.owner_id,
       title: 'tampered',
       content: 'tampered'
     },

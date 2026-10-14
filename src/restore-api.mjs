@@ -358,27 +358,38 @@ export async function handleRestore(req, res, dependencies = {}) {
       changeScope: ['byteback_notes:one-row']
     });
 
-    // 한 건만 upsert합니다. 다른 메모와 감사 기록은 건드리지 않습니다.
+    // DB 내부에서도 ID·소유자·백업 무결성을 다시 검증한 뒤
+    // 정확히 한 건만 복구합니다.
     const {
+      data: restoreResult,
       error: restoreError
-    } = await db
-      .from('byteback_notes')
-      .upsert({
-        id: backup.id,
-        owner_id: login.userId,
-        title: backup.title,
-        content: backup.content,
-        sample_marker:
-          typeof backup.sample_marker === 'string' && backup.sample_marker
-            ? backup.sample_marker
-            : config.sampleMarker
-      }, {
-        onConflict: 'id'
-      });
+    } = await db.rpc('byteback_restore_note', {
+      p_id: backup.id,
+      p_owner: login.userId
+    });
 
     if (restoreError) throw restoreError;
 
-    // upsert 응답이 아니라 실제 저장된 한 건을 다시 읽어 확인합니다.
+    const rpcResult =
+      Array.isArray(restoreResult) && restoreResult.length === 1
+        ? restoreResult[0]
+        : null;
+
+    const rpcMatches = Boolean(
+      rpcResult
+      && rpcResult.id === backup.id
+      && rpcResult.restored === true
+      && rpcResult.owner_matched === true
+      && rpcResult.content_hash === digest
+    );
+
+    if (!rpcMatches) {
+      return res.status(409).json({
+        error: 'DB 복구 결과 검증에 실패했습니다.'
+      });
+    }
+
+    // RPC 응답만 믿지 않고 실제 저장된 한 건을 다시 읽어 확인합니다.
     const {
       data: restoredRows,
       error: restoredReadError
