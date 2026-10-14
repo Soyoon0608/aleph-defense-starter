@@ -5,6 +5,10 @@ const BACKUP_SCHEMA = 'aleph.defense.safe-policy.v1';
 const MANIFEST_SCHEMA =
   'aleph.defense.safe-backup-manifest.v1';
 
+const SAFE_POLICY_REVISION = 'safe-stage9';
+const UUID =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
+
 function canonical(value) {
   if (Array.isArray(value)) {
     return `[${value.map(canonical).join(',')}]`;
@@ -63,10 +67,13 @@ export function verifySafePolicyBackup(backup) {
     throw new Error('policy_backup_verification_failed');
   }
 
+  const backupSha256 = policyDigest(backup);
+
   if (!safeManifest
       || safeManifest.schema !== MANIFEST_SCHEMA
       || safeManifest.policyVersion !== backup.version
-      || safeManifest.policySha256 !== actualDigest) {
+      || safeManifest.policySha256 !== actualDigest
+      || safeManifest.backupSha256 !== backupSha256) {
     throw new Error('policy_backup_not_trusted');
   }
 
@@ -74,7 +81,46 @@ export function verifySafePolicyBackup(backup) {
     verified: true,
     version: backup.version,
     sha256: actualDigest,
+    backupSha256,
     policy: backup.policy
+  };
+}
+
+export function verifyNoteRestorePlan({
+  backup,
+  scope,
+  currentRoutes
+}) {
+  const verified = verifySafePolicyBackup(backup);
+
+  if (backup.policyRevision !== SAFE_POLICY_REVISION
+      || backup.service !== 'notes'
+      || !backup.restoreScope
+      || backup.restoreScope.service !== 'notes'
+      || backup.restoreScope.maxNotes !== 1) {
+    throw new Error('invalid_restore_policy_scope');
+  }
+
+  if (!scope
+      || scope.service !== 'notes'
+      || !Array.isArray(scope.noteIds)
+      || scope.noteIds.length !== 1
+      || !UUID.test(scope.noteIds[0] ?? '')) {
+    throw new Error('invalid_restore_request_scope');
+  }
+
+  if (!Array.isArray(currentRoutes)
+      || !sameValue(currentRoutes, verified.policy.allowedRoutes)) {
+    throw new Error('restore_routes_do_not_match_backup');
+  }
+
+  return {
+    ...verified,
+    policyRevision: backup.policyRevision,
+    scope: {
+      service: 'notes',
+      noteIds: [scope.noteIds[0].toLowerCase()]
+    }
   };
 }
 

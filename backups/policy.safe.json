@@ -28,5 +28,11 @@
       }
     }
   },
-  "sha256": "b7e476c8e15f8160367a9a2f1be2d874c2a3f97839c62bc4ebf224e331970809"
+  "sha256": "b7e476c8e15f8160367a9a2f1be2d874c2a3f97839c62bc4ebf224e331970809",
+  "policyRevision": "safe-stage9",
+  "service": "notes",
+  "restoreScope": {
+    "service": "notes",
+    "maxNotes": 1
+  }
 }

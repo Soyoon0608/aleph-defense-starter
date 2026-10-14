@@ -336,3 +336,44 @@ test('rejects restore when verified userId does not own the backup', async () =>
   assert.equal(res.statusCode, 404);
   assert.equal(liveRows.length, 0);
 });
+
+test('rejects restore when current routes differ from the verified backup', async () => {
+  const backup = backupRow();
+  const liveRows = [];
+
+  const res = response();
+
+  const fixtureManifest = {
+    ...safeManifest,
+    noteBindingSha256: noteBindingDigest(
+      backup.id,
+      backup.owner_id,
+      backup.content_sha256
+    )
+  };
+
+  await handleRestore({
+    method: 'POST',
+    headers: {},
+    query: {
+      noteId: backup.id
+    },
+    body: {}
+  }, res, {
+    supabaseUrl: new URL(config.identityProvider.issuer).origin,
+    verifyLogin: async () => ({
+      kind: 'judge',
+      userId: backup.owner_id,
+      identity: 'b'
+    }),
+    createClient: fakeCreateClient(liveRows, [backup]),
+    currentRoutes: [
+      ...config.allowedRoutes,
+      'DELETE /api/notes/:id'
+    ],
+    loadBackupManifest: async () => fixtureManifest
+  });
+
+  assert.equal(res.statusCode, 409);
+  assert.equal(liveRows.length, 0);
+});

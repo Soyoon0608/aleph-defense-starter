@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { createClient } from '@supabase/supabase-js';
 import { createLoginVerifier } from './verify-login.mjs';
-import { verifySafePolicyBackup } from './policy-recovery.mjs';
+import { verifyNoteRestorePlan } from './policy-recovery.mjs';
 import config from '../aleph.config.json' with { type: 'json' };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
@@ -50,7 +50,7 @@ function parseRestoreInput(req) {
   };
 }
 
-async function readVerifiedPolicyBackup(dependencies = {}) {
+async function readVerifiedPolicyBackup(dependencies = {}, noteId) {
   const loadPolicyBackup =
     typeof dependencies.loadPolicyBackup === 'function'
       ? dependencies.loadPolicyBackup
@@ -76,7 +76,15 @@ async function readVerifiedPolicyBackup(dependencies = {}) {
     loadBackupManifest()
   ]);
 
-  const verified = verifySafePolicyBackup(backup);
+  const verified = verifyNoteRestorePlan({
+    backup,
+    scope: {
+      service: 'notes',
+      noteIds: [noteId]
+    },
+    currentRoutes:
+      dependencies.currentRoutes ?? config.allowedRoutes
+  });
 
   if (!manifest
       || typeof manifest !== 'object'
@@ -84,6 +92,7 @@ async function readVerifiedPolicyBackup(dependencies = {}) {
       || manifest.schema !== SAFE_MANIFEST_SCHEMA
       || manifest.policyVersion !== verified.version
       || manifest.policySha256 !== verified.sha256
+      || manifest.backupSha256 !== verified.backupSha256
       || !SHA256.test(manifest.noteBindingSha256 ?? '')) {
     throw new Error('backup_manifest_verification_failed');
   }
@@ -170,7 +179,7 @@ export async function handleRestore(req, res, dependencies = {}) {
 
     try {
       verifiedPolicyBackup =
-        await readVerifiedPolicyBackup(dependencies);
+        await readVerifiedPolicyBackup(dependencies, input.id);
 
       console.log('S10_RESTORE_TRACE', {
         stage: 'policy_backup_verified',
@@ -293,7 +302,7 @@ export async function handleRestore(req, res, dependencies = {}) {
 
     try {
       rereadPolicyBackup =
-        await readVerifiedPolicyBackup(dependencies);
+        await readVerifiedPolicyBackup(dependencies, input.id);
     } catch {
       return res.status(409).json({
         error: '정책 사본 재검증에 실패했습니다.'
