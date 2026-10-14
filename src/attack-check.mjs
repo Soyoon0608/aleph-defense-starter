@@ -891,7 +891,7 @@ async function runStepTenChecks(config) {
   const badResponse = await callRestore({
     liveRows: rejectedRows,
     backupRows: [badBackup],
-    body: { id: badBackup.id }
+    noteId: badBackup.id
   });
 
   if (badResponse.statusCode !== 409
@@ -912,7 +912,7 @@ async function runStepTenChecks(config) {
     liveRows: deniedRows,
     backupRows: [noteBackup],
     identity: 'a',
-    body: { id: noteBackup.id }
+    noteId: noteBackup.id
   });
 
   if (deniedResponse.statusCode !== 403
