@@ -5,19 +5,32 @@ export { runAttackRecords };
 // Never return tokens, private keys, real names, or note bodies.
 export async function runAttackChecks(config) {
   if (config.step === 12) {
-    const { readFileSync } = await import('node:fs');
-    const record = JSON.parse(
-      readFileSync(
-        new URL('../ops/ops-record.json', import.meta.url),
-        'utf8'
-      )
-    );
+    const cases = [
+      ['stage1_public_seed_removed', '최종 상태에서 시작 틀 공개 메모가 남아 있지 않음'],
+      ['static_data_json_notes', '정적 /data.json의 메모 배열이 비어 있음'],
+      ['anonymous_list_read', '로그인 없는 GET /api/notes는 자료 없이 401'],
+      ['forged_token_list_read', '위조 토큰 GET /api/notes는 자료 없이 401'],
+      ['anonymous_write', '비로그인 쓰기 요청 거부'],
+      ['query_identity_ignored', '쿼리의 userId·role을 권한으로 믿지 않고 401'],
+      ['header_identity_ignored', '헤더의 사용자·역할을 권한으로 믿지 않고 401'],
+      ['login_required', '로그인 본인 CRUD와 타인 차단'],
+      ['app_page_available', '자료실 첫 화면 GET이 200'],
+      ['original_direct_no_key', '키 없는 원본 Data API 직접 GET 거부'],
+      ['registered_device_note_allowed', '등록 기기의 정상 메모 가상 요청 allow'],
+      ['unregistered_device_denied', '미등록 기기 가상 요청 deny'],
+      ['unusual_access_step_up', '복합 이상 접속 가상 요청 step_up'],
+      ['other_zone_route_denied', '강사 자료 구역 가상 요청 deny'],
+      ['burst_read_revocation', '10분 내 과다 GET 가상 사건은 회수 제안'],
+      ['restore_without_login', '로그인 없는 복구 경로는 보호됨'],
+      ['pwa_manifest_available', '설치형 웹앱 manifest가 200이고 standalone'],
+      ['device_status_without_login', '로그인 없는 기기 상태 조회는 승인되지 않음'],
+      ['approved_device_signed_requests', '승인된 로그인 기기의 서명 요청으로 기존 자료실 사용']
+    ];
 
-    return record.rows.map(({ attackId, expected }) => ({
+    return cases.map(([attackId, expected]) => ({
       attackId,
       expected,
-      observed:
-        '미실행: 제출 묶음에서는 네트워크 요청을 다시 보내지 않음. 실제 API 실측은 ops/ops-record.json과 /api/checks에 기록됨'
+      observed: '미실행: 제출 묶음에서는 네트워크 요청을 보내지 않음'
     }));
   }
   if (config.step === 11) return runStepElevenChecks(config);
