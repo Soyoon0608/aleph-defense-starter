@@ -1,0 +1,30 @@
+{
+  "schema": "aleph.xdr.patterns.v1",
+  "moduleKey": "persistence",
+  "basis": {
+    "techniques": [
+      "T1543",
+      "T1053"
+    ]
+  },
+  "patterns": [
+    {
+      "id": "unsigned_new_service",
+      "name": "서명 없는 새 서비스 등록",
+      "condition": "새 서비스가 등록되거나 서비스 실행 파일이 바뀌었고 서명이 없거나 평소 목록에 없는 항목이다.",
+      "evidence": "MITRE ATT&CK T1543은 공격자가 지속성을 위해 시스템 서비스를 만들거나 기존 서비스를 변경하는 기법을 다룬다."
+    },
+    {
+      "id": "unknown_scheduled_task",
+      "name": "낯선 예약 작업 생성",
+      "condition": "평소 목록에 없던 예약 작업이 새로 생기거나 임시 폴더의 실행 파일 등 낯선 프로그램을 실행한다.",
+      "evidence": "MITRE ATT&CK T1053은 공격자가 지속성이나 실행을 위해 예약 작업 또는 작업 스케줄러를 사용하는 기법을 다룬다."
+    },
+    {
+      "id": "startup_folder_change",
+      "name": "시작 폴더의 낯선 항목 변경",
+      "condition": "시작 폴더나 시작 프로그램에 평소 목록에 없던 실행 항목이 추가되거나 변경된다.",
+      "evidence": "부팅이나 로그인 뒤 다시 실행되도록 시작 위치를 변경하는 것은 지속성 확보 여부를 확인해야 하는 신호다."
+    }
+  ]
+}

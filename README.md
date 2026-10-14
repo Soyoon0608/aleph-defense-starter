@@ -390,3 +390,21 @@ CVE-2021-44228(Log4Shell) 형태의 알려진 취약점 악용 경보를 분류�
 이 시험 결과는 실제 Wazuh 운영 탐지나 운영 심판 판정의 증거가 아닙니다.
 
 다시 실행: `npm run xdr:run -- known-cve`
+
+## 보너스 xdr-04 저장점
+
+서비스·예약 작업·시작 항목의 지속성 경보를 분류합니다.
+`xdr/persistence/decide.mjs`는 다른 파일이나 패키지를 불러오지 않고 경보 하나를 독립적으로 판단합니다.
+명확한 지속성 악용 신호는 block, 애매한 변경은 alert, 정상 이벤트는 record로 분류합니다.
+
+시험 경보 24건 결과:
+- block 8건
+- alert 8건
+- record 8건
+- 정상 이벤트 block 0건
+
+`respond.mjs`는 block 판정에 대해서만 근거 경보 ID와 만료 시각이 있는 deny 후보를 만듭니다.
+기존 `src/decider.mjs`의 규칙은 변경하지 않았습니다.
+이 시험 결과는 실제 운영 심판 판정의 증거가 아닙니다.
+
+다시 실행: `npm run xdr:run -- persistence`
