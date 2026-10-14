@@ -408,3 +408,21 @@ CVE-2021-44228(Log4Shell) 형태의 알려진 취약점 악용 경보를 분류�
 이 시험 결과는 실제 운영 심판 판정의 증거가 아닙니다.
 
 다시 실행: `npm run xdr:run -- persistence`
+
+## 보너스 xdr-05 저장점
+
+관리자 그룹 변경과 관리자 권한 사용 경보를 분류합니다.
+`xdr/privilege/decide.mjs`는 다른 파일이나 패키지를 불러오지 않고 경보 하나를 독립적으로 판단합니다.
+명확한 권한 가로채기 신호는 block, 애매한 권한 변화는 alert, 정상 이벤트는 record로 분류합니다.
+
+시험 경보 26건 결과:
+- block 9건
+- alert 8건
+- record 9건
+- 정상 이벤트 block 0건
+
+`respond.mjs`는 block 판정에 대해서만 계정, 근거 경보 ID, 만료 시각이 있는 deny 후보를 만듭니다.
+기존 `src/decider.mjs`의 규칙은 변경하지 않았습니다.
+이 시험 결과는 실제 운영 심판 판정의 증거가 아닙니다.
+
+다시 실행: `npm run xdr:run -- privilege`

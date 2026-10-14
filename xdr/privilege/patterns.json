@@ -1,0 +1,30 @@
+{
+  "schema": "aleph.xdr.patterns.v1",
+  "moduleKey": "privilege",
+  "basis": {
+    "techniques": [
+      "T1068",
+      "T1078"
+    ]
+  },
+  "patterns": [
+    {
+      "id": "admin_group_added",
+      "name": "관리자 그룹에 평소 계정 추가",
+      "condition": "평범한 계정이나 여러 계정이 관리자 그룹에 새로 추가되거나 다시 관리자 그룹에 들어간다.",
+      "evidence": "MITRE ATT&CK T1078은 공격자가 정상 계정이나 유효한 자격 증명을 악용해 권한 있는 접근을 이어가는 행위를 다룬다."
+    },
+    {
+      "id": "unfamiliar_admin_command",
+      "name": "처음 보는 관리자 권한 명령",
+      "condition": "평범한 계정이 관리자 권한으로 바뀐 직후 관리자 명령을 실행하거나 다른 계정의 권한으로 관리자 명령을 실행한다.",
+      "evidence": "MITRE ATT&CK T1068은 공격자가 취약점이나 권한 경계를 악용해 더 높은 권한을 획득하는 기법을 다룬다."
+    },
+    {
+      "id": "off_hours_privilege_use",
+      "name": "업무 시간 밖 권한 사용",
+      "condition": "업무나 수업 시간 밖에 처음 보는 주소에서 관리자 명령 또는 관리자 그룹 변경이 발생한다.",
+      "evidence": "평소 시간대와 다른 관리자 권한 사용은 정상 계정 도용이나 권한 상승 여부를 추가 확인해야 하는 신호다."
+    }
+  ]
+}
