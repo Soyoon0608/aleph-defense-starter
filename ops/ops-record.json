@@ -1,7 +1,258 @@
 {
   "schema": "byteback.ops-record.v1",
-  "status": "not_run",
-  "commit": "afcefdcd09f6dc471a02678e00fdc8d0a5303339",
-  "checkedAt": null,
-  "rows": []
+  "status": "confirmed",
+  "step": 12,
+  "commit": "1ec5d6c7fc2542abf707ba695c256ee5a290b5cd",
+  "checkedAt": "2026-10-14T03:28:31.642Z",
+  "note": "실제 배포 GET 결과와 고정 가상 입력 판정 API 결과입니다. not_run은 보내지 않은 점검입니다. 41종 총공세는 심판 판정 전이므로 이 기록에서 통과 처리하지 않습니다.",
+  "counts": {
+    "total": 19,
+    "blocked": 13,
+    "allowed": 3,
+    "unexpected": 0,
+    "notRun": 3
+  },
+  "rows": [
+    {
+      "attackId": "stage1_public_seed_removed",
+      "stage": 1,
+      "kind": "deny",
+      "area": "access",
+      "expected": "최종 상태에서 시작 틀 공개 메모가 남아 있지 않음",
+      "observed": "HTTP 200; notes=0",
+      "result": "blocked",
+      "requestIds": [
+        "08a2b5ce-c9a7-46a8-8e65-60729659e2c9"
+      ],
+      "checkedAt": "2026-10-14T03:28:28.485Z"
+    },
+    {
+      "attackId": "static_data_json_notes",
+      "stage": 2,
+      "kind": "deny",
+      "area": "access",
+      "expected": "정적 /data.json의 메모 배열이 비어 있음",
+      "observed": "HTTP 200; notes=0",
+      "result": "blocked",
+      "requestIds": [
+        "2679f586-0aab-497d-958f-318819cc5ae6"
+      ],
+      "checkedAt": "2026-10-14T03:28:28.596Z"
+    },
+    {
+      "attackId": "anonymous_list_read",
+      "stage": 3,
+      "kind": "deny",
+      "area": "access",
+      "expected": "로그인 없는 GET /api/notes는 자료 없이 401",
+      "observed": "HTTP 401",
+      "result": "blocked",
+      "requestIds": [
+        "2d99714e-d4ce-4d89-9efa-4986f73b94fd"
+      ],
+      "checkedAt": "2026-10-14T03:28:28.645Z"
+    },
+    {
+      "attackId": "forged_token_list_read",
+      "stage": 3,
+      "kind": "deny",
+      "area": "access",
+      "expected": "위조 토큰 GET /api/notes는 자료 없이 401",
+      "observed": "HTTP 401",
+      "result": "blocked",
+      "requestIds": [
+        "2b3cbeb0-2eec-41a7-b64e-54e60ca3610d"
+      ],
+      "checkedAt": "2026-10-14T03:28:28.899Z"
+    },
+    {
+      "attackId": "anonymous_write",
+      "stage": 3,
+      "kind": "deny",
+      "area": "access",
+      "expected": "비로그인 쓰기 요청 거부",
+      "observed": "미실행: 실제 자료를 바꾸는 POST·PUT·DELETE는 이 기록 절차에서 보내지 않음",
+      "result": "not_run",
+      "requestIds": [],
+      "checkedAt": null
+    },
+    {
+      "attackId": "query_identity_ignored",
+      "stage": 4,
+      "kind": "deny",
+      "area": "access",
+      "expected": "쿼리의 userId·role을 권한으로 믿지 않고 401",
+      "observed": "HTTP 401",
+      "result": "blocked",
+      "requestIds": [
+        "ef128ca0-68d1-48c7-8f1e-742919203467"
+      ],
+      "checkedAt": "2026-10-14T03:28:29.180Z"
+    },
+    {
+      "attackId": "header_identity_ignored",
+      "stage": 4,
+      "kind": "deny",
+      "area": "access",
+      "expected": "헤더의 사용자·역할을 권한으로 믿지 않고 401",
+      "observed": "HTTP 401",
+      "result": "blocked",
+      "requestIds": [
+        "e31b4bb3-1498-4693-9f58-a1f83132a6a9"
+      ],
+      "checkedAt": "2026-10-14T03:28:29.503Z"
+    },
+    {
+      "attackId": "login_required",
+      "stage": 4,
+      "kind": "allow",
+      "area": "access",
+      "expected": "로그인 본인 CRUD와 타인 차단",
+      "observed": "미실행: 로그인 토큰과 실제 쓰기 요청이 필요하므로 자동 기록에서 실행하지 않음",
+      "result": "not_run",
+      "requestIds": [],
+      "checkedAt": null
+    },
+    {
+      "attackId": "app_page_available",
+      "stage": 5,
+      "kind": "allow",
+      "area": "app",
+      "expected": "자료실 첫 화면 GET이 200",
+      "observed": "HTTP 200",
+      "result": "allowed",
+      "requestIds": [
+        "fa4afcad-52cf-4355-b245-b809731dc34b"
+      ],
+      "checkedAt": "2026-10-14T03:28:29.761Z"
+    },
+    {
+      "attackId": "original_direct_no_key",
+      "stage": 5,
+      "kind": "deny",
+      "area": "access",
+      "expected": "키 없는 원본 Data API 직접 GET 거부",
+      "observed": "HTTP 401",
+      "result": "blocked",
+      "requestIds": [
+        "ba8abf2e-7b3b-4346-bbca-b507ef2b6676"
+      ],
+      "checkedAt": "2026-10-14T03:28:29.774Z"
+    },
+    {
+      "attackId": "registered_device_note_allowed",
+      "stage": 6,
+      "kind": "allow",
+      "area": "decision",
+      "expected": "등록 기기의 정상 메모 가상 요청 allow",
+      "observed": "HTTP 200; jsonReady=true",
+      "result": "allowed",
+      "requestIds": [
+        "5dc86774-1a37-4bdf-b870-c44f3c9c2dba"
+      ],
+      "checkedAt": "2026-10-14T03:28:29.841Z"
+    },
+    {
+      "attackId": "unregistered_device_denied",
+      "stage": 6,
+      "kind": "deny",
+      "area": "decision",
+      "expected": "미등록 기기 가상 요청 deny",
+      "observed": "HTTP 200; jsonReady=true",
+      "result": "blocked",
+      "requestIds": [
+        "e66d4168-30c1-4242-97ad-1992c3a6f432"
+      ],
+      "checkedAt": "2026-10-14T03:28:30.098Z"
+    },
+    {
+      "attackId": "unusual_access_step_up",
+      "stage": 7,
+      "kind": "deny",
+      "area": "decision",
+      "expected": "복합 이상 접속 가상 요청 step_up",
+      "observed": "HTTP 200; jsonReady=true",
+      "result": "blocked",
+      "requestIds": [
+        "82194366-7bf4-4ec9-a3ee-84d305121ab0"
+      ],
+      "checkedAt": "2026-10-14T03:28:30.357Z"
+    },
+    {
+      "attackId": "other_zone_route_denied",
+      "stage": 8,
+      "kind": "deny",
+      "area": "decision",
+      "expected": "강사 자료 구역 가상 요청 deny",
+      "observed": "HTTP 200; jsonReady=true",
+      "result": "blocked",
+      "requestIds": [
+        "3db4562c-4344-45e8-bcbb-9c5c18fb14fa"
+      ],
+      "checkedAt": "2026-10-14T03:28:30.622Z"
+    },
+    {
+      "attackId": "burst_read_revocation",
+      "stage": 9,
+      "kind": "deny",
+      "area": "detection",
+      "expected": "10분 내 과다 GET 가상 사건은 회수 제안",
+      "observed": "HTTP 200; jsonReady=true",
+      "result": "blocked",
+      "requestIds": [
+        "8b2b09f1-25db-4eb6-96c1-cc8979ad9c4e"
+      ],
+      "checkedAt": "2026-10-14T03:28:30.876Z"
+    },
+    {
+      "attackId": "restore_without_login",
+      "stage": 10,
+      "kind": "deny",
+      "area": "restore",
+      "expected": "로그인 없는 복구 경로는 보호됨",
+      "observed": "HTTP 405",
+      "result": "blocked",
+      "requestIds": [
+        "88ed4b2b-fba5-48e6-bf47-02bab61def13"
+      ],
+      "checkedAt": "2026-10-14T03:28:31.112Z"
+    },
+    {
+      "attackId": "pwa_manifest_available",
+      "stage": 11,
+      "kind": "allow",
+      "area": "app",
+      "expected": "설치형 웹앱 manifest가 200이고 standalone",
+      "observed": "HTTP 200; display=standalone",
+      "result": "allowed",
+      "requestIds": [
+        "0a6896b0-3769-4c4a-b3bb-992162b224c1"
+      ],
+      "checkedAt": "2026-10-14T03:28:31.361Z"
+    },
+    {
+      "attackId": "device_status_without_login",
+      "stage": 11,
+      "kind": "deny",
+      "area": "device",
+      "expected": "로그인 없는 기기 상태 조회는 승인되지 않음",
+      "observed": "HTTP 401",
+      "result": "blocked",
+      "requestIds": [
+        "66e8ddbd-9a69-419a-a44f-435aa31189dd"
+      ],
+      "checkedAt": "2026-10-14T03:28:31.371Z"
+    },
+    {
+      "attackId": "approved_device_signed_requests",
+      "stage": 11,
+      "kind": "allow",
+      "area": "device",
+      "expected": "승인된 로그인 기기의 서명 요청으로 기존 자료실 사용",
+      "observed": "미실행: 실제 로그인과 관리자 승인 principal binding이 필요해 자동 기록에서 실행하지 않음",
+      "result": "not_run",
+      "requestIds": [],
+      "checkedAt": null
+    }
+  ]
 }
