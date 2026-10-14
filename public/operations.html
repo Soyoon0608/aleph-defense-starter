@@ -1,0 +1,392 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1"
+  >
+  <title>BYTE BACK | 탈환 작전실</title>
+
+  <style>
+    :root {
+      color-scheme: dark;
+      font-family: system-ui, sans-serif;
+    }
+
+    body {
+      margin: 0;
+      background: #101a28;
+      color: #ecf4ff;
+    }
+
+    main {
+      max-width: 960px;
+      margin: auto;
+      padding: 32px 18px 60px;
+    }
+
+    a {
+      color: #8ad8df;
+    }
+
+    .notice,
+    .card {
+      border: 1px solid #51667c;
+      border-radius: 12px;
+      padding: 16px;
+      margin: 14px 0;
+      background: #162337;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns:
+        repeat(auto-fit, minmax(190px, 1fr));
+      gap: 12px;
+    }
+
+    .metric {
+      font-size: 28px;
+      font-weight: 700;
+    }
+
+    .status {
+      font-weight: 700;
+    }
+
+    code,
+    pre {
+      overflow-wrap: anywhere;
+      white-space: pre-wrap;
+    }
+
+    pre {
+      padding: 12px;
+      border-radius: 8px;
+      background: #0a111c;
+    }
+
+
+    .table-wrap {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    th,
+    td {
+      border: 1px solid #51667c;
+      padding: 7px;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    .muted {
+      color: #bfd0e5;
+    }
+  </style>
+</head>
+
+<body>
+<main>
+  <p>
+    <a href="/">← 자료실로 돌아가기</a>
+  </p>
+
+  <h1>탈환 작전실</h1>
+
+  <div class="notice">
+    이 화면은 <code>/api/checks</code> 응답만 표시합니다.
+    아직 실행하지 않은 점검은 성공으로 바꾸지 않고
+    <strong>미실행</strong>으로 표시합니다.
+    가상 메모 제목과 본문은 표시하지 않습니다.
+  </div>
+
+  <section class="card">
+    <h2>실측 기록 요약</h2>
+
+    <p id="record-status">확인 중</p>
+
+    <div class="grid">
+      <div>
+        <div class="metric" id="total">-</div>
+        전체 기록
+      </div>
+
+      <div>
+        <div class="metric" id="blocked">-</div>
+        금지 요청 거부
+      </div>
+
+      <div>
+        <div class="metric" id="allowed">-</div>
+        정상 요청 허용
+      </div>
+
+      <div>
+        <div class="metric" id="unexpected">-</div>
+        기대와 다름
+      </div>
+
+      <div>
+        <div class="metric" id="not-run">-</div>
+        미실행
+      </div>
+    </div>
+  </section>
+
+  <section class="grid">
+    <article class="card">
+      <h2>판정기 규칙</h2>
+      <p id="rules-status" class="status">확인 중</p>
+      <p id="rules"></p>
+      <p class="muted">
+        규칙 이름은 구현 목록이며
+        실측 통과 수가 아닙니다.
+      </p>
+    </article>
+
+    <article class="card">
+      <h2>탐지 사건</h2>
+      <p id="detection-status" class="status">
+        확인 중
+      </p>
+      <p id="detection-counts"></p>
+    </article>
+
+    <article class="card">
+      <h2>회수 상태</h2>
+      <p id="revocation-status" class="status">
+        확인 중
+      </p>
+      <p id="revocation-note"></p>
+    </article>
+
+    <article class="card">
+      <h2>복구 버전</h2>
+      <p id="recovery-status" class="status">
+        확인 중
+      </p>
+      <p id="recovery-version"></p>
+    </article>
+  </section>
+
+
+  <section class="card">
+    <h2>1~11단계 정상·금지 요청 기록</h2>
+    <p class="muted">
+      41종 총공세는 이 표의 결과가 아닙니다.
+      보내지 않은 점검은 미실행으로 남깁니다.
+    </p>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>단계</th>
+            <th>구분</th>
+            <th>점검</th>
+            <th>기대 결과</th>
+            <th>실제 API 결과</th>
+            <th>요청 ID</th>
+            <th>확인 시각</th>
+            <th>판정</th>
+          </tr>
+        </thead>
+        <tbody id="checks-table">
+          <tr>
+            <td colspan="8">
+              기록 확인 중
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>가린 서버 기록</h2>
+    <p class="muted">
+      아래 값은 서버 로그에 남기는 요약과
+      같은 객체입니다. 사용자 ID·토큰·메모 내용은
+      포함하지 않습니다.
+    </p>
+
+    <pre id="server-record">확인 중</pre>
+  </section>
+
+  <p id="message" role="status"></p>
+</main>
+
+<script type="module">
+  const $ = selector =>
+    document.querySelector(selector);
+
+  const statusLabel = value =>
+    value === 'confirmed'
+      ? '실측 확인'
+      : value === 'configured'
+        ? '구성 확인'
+        : '미실행';
+
+  try {
+    const response =
+      await fetch('/api/checks', {
+        method: 'GET',
+        cache: 'no-store'
+      });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        data.error
+        || '작전실 API를 확인할 수 없습니다.'
+      );
+    }
+
+    const counts =
+      data.record?.counts ?? {};
+
+    $('#record-status').textContent =
+      statusLabel(data.record?.status)
+      + (
+        data.record?.commit
+          ? ` · 기록 커밋 ${data.record.commit}`
+          : ''
+      );
+
+    $('#total').textContent =
+      counts.total ?? 0;
+
+    $('#blocked').textContent =
+      counts.blocked ?? 0;
+
+    $('#allowed').textContent =
+      counts.allowed ?? 0;
+
+    $('#unexpected').textContent =
+      counts.unexpected ?? 0;
+
+    $('#not-run').textContent =
+      counts.notRun ?? 0;
+
+    $('#rules-status').textContent =
+      statusLabel(data.rules?.status);
+
+    $('#rules').textContent =
+      Array.isArray(data.rules?.ids)
+        ? data.rules.ids.join(', ')
+        : '규칙 정보 없음';
+
+    const detection =
+      data.areas?.detection ?? {};
+
+    $('#detection-status').textContent =
+      statusLabel(detection.status);
+
+    $('#detection-counts').textContent =
+      `전체 ${detection.total ?? 0} · `
+      + `허용 ${detection.allowed ?? 0} · `
+      + `거부 ${detection.blocked ?? 0} · `
+      + `미실행 ${detection.notRun ?? 0}`;
+
+    const revocation =
+      data.areas?.revocation ?? {};
+
+    $('#revocation-status').textContent =
+      statusLabel(revocation.status);
+
+    $('#revocation-note').textContent =
+      revocation.note
+      || '회수 기록 없음';
+
+    const recovery =
+      data.recoveryVersion ?? {};
+
+    $('#recovery-status').textContent =
+      statusLabel(recovery.status);
+
+    $('#recovery-version').textContent =
+      recovery.status === 'configured'
+        ? `버전 ${recovery.version}`
+          + ` · 기준 커밋 ${recovery.sourceCommit}`
+          + ` · 정책 ${recovery.policyRevision}`
+        : '복구 버전 확인 미실행';
+
+
+    const tbody = $('#checks-table');
+    tbody.replaceChildren();
+
+    const resultLabel = value => ({
+      blocked: '거부됨(실측)',
+      allowed: '허용됨(실측)',
+      unexpected: '기대와 다름',
+      not_run: '미실행'
+    }[value] || '미실행');
+
+    for (const item of data.rows ?? []) {
+      const tr =
+        document.createElement('tr');
+
+      const values = [
+        item.stage,
+        item.kind === 'allow'
+          ? '정상'
+          : '금지',
+        item.attackId,
+        item.expected,
+        item.observed,
+        Array.isArray(item.requestIds)
+          ? item.requestIds.join(', ')
+          : '',
+        item.checkedAt ?? '',
+        resultLabel(item.result)
+      ];
+
+      for (const value of values) {
+        const td =
+          document.createElement('td');
+
+        td.textContent =
+          String(value ?? '');
+
+        tr.append(td);
+      }
+
+      tbody.append(tr);
+    }
+
+    if (!tbody.children.length) {
+      const tr =
+        document.createElement('tr');
+
+      const td =
+        document.createElement('td');
+
+      td.colSpan = 8;
+      td.textContent =
+        '실행된 점검 기록이 없습니다.';
+
+      tr.append(td);
+      tbody.append(tr);
+    }
+
+    $('#server-record').textContent =
+      JSON.stringify(
+        data.redactedServerRecord,
+        null,
+        2
+      );
+  } catch (error) {
+    $('#message').textContent =
+      error.message;
+  }
+</script>
+</body>
+</html>

@@ -1,6 +1,7 @@
 // The student changes this check as each stage adds an attack to the same app.
 // Never return tokens, private keys, real names, or note bodies.
 export async function runAttackChecks(config) {
+  if (config.step === 12) return runStepElevenChecks({ ...config, step: 11 });
   if (config.step === 11) return runStepElevenChecks(config);
   if (config.step === 10) return runStepTenChecks(config);
   if (config.step === 9) return runStepNineChecks();
