@@ -57,7 +57,7 @@ export function decide(alert) {
   }
 
   const newDestination =
-    /처음 보는 목적지|처음 보는 주소|평소와 다른 주소|다른 주소/u.test(description);
+    /처음 보는 목적지|처음 보는 주소|목적지는 처음 봅니다|평소와 다른 주소|다른 주소/u.test(description);
 
   const offHours =
     /수업 시간 밖|업무 시간 밖/u.test(description);

@@ -435,8 +435,8 @@ CVE-2021-44228(Log4Shell) 형태의 알려진 취약점 악용 경보를 분류�
 
 시험 경보 30건 결과:
 - block 10건
-- alert 9건
-- record 11건
+- alert 10건
+- record 10건
 - 정상 이벤트 block 0건
 
 `respond.mjs`는 block 판정에 대해서만 목적지 주소, 근거 경보 ID, 만료 시각이 있는 deny 후보를 만듭니다.
