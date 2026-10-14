@@ -111,6 +111,7 @@ async function callRestore({
   liveRows,
   backupRows,
   identity = 'b',
+  userId,
   noteId,
   body = {},
   loadPolicyBackup,
@@ -140,7 +141,10 @@ async function callRestore({
     supabaseUrl: new URL(config.identityProvider.issuer).origin,
     verifyLogin: async () => ({
       kind: 'judge',
-      userId: 'judge-fixture',
+      userId:
+        userId
+        ?? backupRows[0]?.owner_id
+        ?? '00000000-0000-4000-8000-0000000000b0',
       identity
     }),
     createClient: fakeCreateClient(liveRows, backupRows),
@@ -316,4 +320,19 @@ test('stops before restore when the independent note binding differs', async () 
 
   assert.equal(res.statusCode, 409);
   assert.deepEqual(liveRows, before);
+});
+
+test('rejects restore when verified userId does not own the backup', async () => {
+  const backup = backupRow();
+  const liveRows = [];
+
+  const res = await callRestore({
+    liveRows,
+    backupRows: [backup],
+    userId: '00000000-0000-4000-8000-0000000000aa',
+    noteId: backup.id
+  });
+
+  assert.equal(res.statusCode, 404);
+  assert.equal(liveRows.length, 0);
 });

@@ -193,7 +193,7 @@ export async function handleRestore(req, res, dependencies = {}) {
       }
     });
 
-    async function readBackupRows(expectedId) {
+    async function readBackupRows(expectedId, expectedOwner) {
       let query = db
         .from('byteback_notes_backup')
         .select(
@@ -202,6 +202,10 @@ export async function handleRestore(req, res, dependencies = {}) {
 
       if (expectedId) {
         query = query.eq('id', expectedId);
+      }
+
+      if (expectedOwner) {
+        query = query.eq('owner_id', expectedOwner);
       }
 
       const {
@@ -243,7 +247,7 @@ export async function handleRestore(req, res, dependencies = {}) {
     }
 
     // 첫 번째 읽기: 복구 대상으로 사용할 안전 사본을 검증합니다.
-    const firstBackups = await readBackupRows(input.id);
+    const firstBackups = await readBackupRows(input.id, login.userId);
 
     if (!Array.isArray(firstBackups) || firstBackups.length === 0) {
       return res.status(404).json({
@@ -306,7 +310,10 @@ export async function handleRestore(req, res, dependencies = {}) {
     }
 
     // 쓰기 직전 메모 사본도 다시 읽습니다.
-    const rereadBackups = await readBackupRows(firstState.id);
+    const rereadBackups = await readBackupRows(
+      firstState.id,
+      login.userId
+    );
 
     if (!Array.isArray(rereadBackups)
         || rereadBackups.length !== 1) {
@@ -349,7 +356,7 @@ export async function handleRestore(req, res, dependencies = {}) {
       .from('byteback_notes')
       .upsert({
         id: backup.id,
-        owner_id: backup.owner_id,
+        owner_id: login.userId,
         title: backup.title,
         content: backup.content,
         sample_marker:
@@ -382,7 +389,7 @@ export async function handleRestore(req, res, dependencies = {}) {
     const restoreMatches = Boolean(
       restored
       && restored.id === backup.id
-      && restored.owner_id === backup.owner_id
+      && restored.owner_id === login.userId
       && contentDigest(restored.content) === digest
     );
 
