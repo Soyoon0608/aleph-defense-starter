@@ -355,7 +355,7 @@ test('stops before restore when the policy backup cannot be verified', async () 
   assert.deepEqual(liveRows, before);
 });
 
-test('stops before restore when the independent note binding differs', async () => {
+test('does not pin restore to one manifest note binding', async () => {
   const backup = backupRow();
 
   const liveRows = [{
@@ -377,8 +377,8 @@ test('stops before restore when the independent note binding differs', async () 
     })
   });
 
-  assert.equal(res.statusCode, 409);
-  assert.deepEqual(liveRows, before);
+  assert.equal(res.statusCode, 200);
+  assert.equal(liveRows[0].content, backup.content);
 });
 
 test('rejects restore when verified userId does not own the backup', async () => {

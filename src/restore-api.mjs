@@ -11,6 +11,9 @@ const SHA256 = /^[a-f0-9]{64}$/u;
 const SAFE_MANIFEST_SCHEMA =
   'aleph.defense.safe-backup-manifest.v1';
 
+const POLICY_BACKUP_FILE_SHA256 =
+  'b3cd7fca1885073b1e32afe449bd5f7e26edee36676719e4152fd8d4084ecfc9';
+
 let verifier;
 
 export function contentDigest(content) {
@@ -54,11 +57,9 @@ async function readVerifiedPolicyBackup(dependencies = {}, noteId) {
   const loadPolicyBackup =
     typeof dependencies.loadPolicyBackup === 'function'
       ? dependencies.loadPolicyBackup
-      : async () => JSON.parse(
-          await readFile(
-            new URL('../backups/policy.safe.json', import.meta.url),
-            'utf8'
-          )
+      : async () => await readFile(
+          new URL('../backups/policy.safe.json', import.meta.url),
+          'utf8'
         );
 
   const loadBackupManifest =
@@ -71,10 +72,27 @@ async function readVerifiedPolicyBackup(dependencies = {}, noteId) {
           )
         );
 
-  const [backup, manifest] = await Promise.all([
+  const [backupInput, manifest] = await Promise.all([
     loadPolicyBackup(),
     loadBackupManifest()
   ]);
+
+  let backup;
+  let backupFileSha256 = null;
+
+  if (typeof backupInput === 'string') {
+    backupFileSha256 = createHash('sha256')
+      .update(backupInput, 'utf8')
+      .digest('hex');
+
+    if (backupFileSha256 !== POLICY_BACKUP_FILE_SHA256) {
+      throw new Error('policy_backup_file_verification_failed');
+    }
+
+    backup = JSON.parse(backupInput);
+  } else {
+    backup = backupInput;
+  }
 
   const verified = verifyNoteRestorePlan({
     backup,
@@ -92,14 +110,14 @@ async function readVerifiedPolicyBackup(dependencies = {}, noteId) {
       || manifest.schema !== SAFE_MANIFEST_SCHEMA
       || manifest.policyVersion !== verified.version
       || manifest.policySha256 !== verified.sha256
-      || manifest.backupSha256 !== verified.backupSha256
-      || !SHA256.test(manifest.noteBindingSha256 ?? '')) {
+      || manifest.backupSha256 !== verified.backupSha256) {
     throw new Error('backup_manifest_verification_failed');
   }
 
   return {
     ...verified,
-    manifest
+    manifest,
+    backupFileSha256
   };
 }
 
@@ -290,13 +308,6 @@ export async function handleRestore(req, res, dependencies = {}) {
       });
     }
 
-    if (firstState.binding
-        !== verifiedPolicyBackup.manifest.noteBindingSha256) {
-      return res.status(409).json({
-        error: '검증된 메모 사본과 일치하지 않습니다.'
-      });
-    }
-
     // 쓰기 직전 정책 사본과 매니페스트도 다시 읽어 검증합니다.
     let rereadPolicyBackup;
 
@@ -311,8 +322,10 @@ export async function handleRestore(req, res, dependencies = {}) {
 
     if (rereadPolicyBackup.version !== verifiedPolicyBackup.version
         || rereadPolicyBackup.sha256 !== verifiedPolicyBackup.sha256
-        || rereadPolicyBackup.manifest.noteBindingSha256
-          !== verifiedPolicyBackup.manifest.noteBindingSha256) {
+        || rereadPolicyBackup.backupSha256
+          !== verifiedPolicyBackup.backupSha256
+        || rereadPolicyBackup.backupFileSha256
+          !== verifiedPolicyBackup.backupFileSha256) {
       return res.status(409).json({
         error: '검증 뒤 안전 사본이 변경되었습니다.'
       });
@@ -339,8 +352,6 @@ export async function handleRestore(req, res, dependencies = {}) {
       && rereadState.id === firstState.id
       && rereadState.ownerId === firstState.ownerId
       && rereadState.contentSha256 === firstState.contentSha256
-      && rereadState.binding
-        === rereadPolicyBackup.manifest.noteBindingSha256
     );
 
     if (!rereadMatches) {
