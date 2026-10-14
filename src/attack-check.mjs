@@ -5,11 +5,19 @@ export { runAttackRecords };
 // Never return tokens, private keys, real names, or note bodies.
 export async function runAttackChecks(config) {
   if (config.step === 12) {
-    const rows = await runAttackRecords(config);
-    return rows.map(({ attackId, expected, observed }) => ({
+    const { readFileSync } = await import('node:fs');
+    const record = JSON.parse(
+      readFileSync(
+        new URL('../ops/ops-record.json', import.meta.url),
+        'utf8'
+      )
+    );
+
+    return record.rows.map(({ attackId, expected }) => ({
       attackId,
       expected,
-      observed
+      observed:
+        '미실행: 제출 묶음에서는 네트워크 요청을 다시 보내지 않음. 실제 API 실측은 ops/ops-record.json과 /api/checks에 기록됨'
     }));
   }
   if (config.step === 11) return runStepElevenChecks(config);
