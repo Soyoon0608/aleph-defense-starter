@@ -2,8 +2,8 @@
   "schema": "byteback.ops-record.v1",
   "status": "confirmed",
   "step": 12,
-  "commit": "03577013c89080aaa388218f36f3923adcde28ec",
-  "checkedAt": "2026-10-14T03:44:22.671Z",
+  "commit": "2d257a79bf8870a4c1f81cdb0c9779d3e97611aa",
+  "checkedAt": "2026-10-14T04:33:12.131Z",
   "note": "실제 배포 GET 결과와 고정 가상 입력 판정 API 결과입니다. not_run은 보내지 않은 점검입니다. 41종 총공세는 심판이 판정합니다.",
   "counts": {
     "total": 19,
@@ -19,12 +19,12 @@
       "kind": "deny",
       "area": "access",
       "expected": "최종 상태에서 시작 틀 공개 메모가 남아 있지 않음",
-      "observed": "HTTP 200; notes=0",
+      "observed": "HTTP 200; bodyBytes=18",
       "result": "blocked",
       "requestIds": [
-        "1c8233c8-e988-4de4-9c24-92a7f3790792"
+        "bf175eba-d787-4516-8bfb-678b2e295d06"
       ],
-      "checkedAt": "2026-10-14T03:44:19.691Z"
+      "checkedAt": "2026-10-14T04:33:09.041Z"
     },
     {
       "attackId": "static_data_json_notes",
@@ -32,12 +32,12 @@
       "kind": "deny",
       "area": "access",
       "expected": "정적 /data.json의 메모 배열이 비어 있음",
-      "observed": "HTTP 200; notes=0",
+      "observed": "HTTP 200; bodyBytes=18",
       "result": "blocked",
       "requestIds": [
-        "3921c958-d83f-4586-a208-2335834d7727"
+        "79d7174b-5b14-4320-a376-7c0465702770"
       ],
-      "checkedAt": "2026-10-14T03:44:19.779Z"
+      "checkedAt": "2026-10-14T04:33:09.127Z"
     },
     {
       "attackId": "anonymous_list_read",
@@ -45,12 +45,12 @@
       "kind": "deny",
       "area": "access",
       "expected": "로그인 없는 GET /api/notes는 자료 없이 401",
-      "observed": "HTTP 401",
+      "observed": "HTTP 401; bodyBytes=41",
       "result": "blocked",
       "requestIds": [
-        "23f2788e-380d-4d27-974b-dff49b94e384"
+        "1d928bab-a83e-4567-bcf2-edfc5db509d2"
       ],
-      "checkedAt": "2026-10-14T03:44:19.807Z"
+      "checkedAt": "2026-10-14T04:33:09.155Z"
     },
     {
       "attackId": "forged_token_list_read",
@@ -58,12 +58,12 @@
       "kind": "deny",
       "area": "access",
       "expected": "위조 토큰 GET /api/notes는 자료 없이 401",
-      "observed": "HTTP 401",
+      "observed": "HTTP 401; bodyBytes=41",
       "result": "blocked",
       "requestIds": [
-        "6635f650-df16-43fc-a8f5-14087b57b1cd"
+        "f364daee-ec21-4360-a553-c9f6cbc1c5c3"
       ],
-      "checkedAt": "2026-10-14T03:44:20.051Z"
+      "checkedAt": "2026-10-14T04:33:09.419Z"
     },
     {
       "attackId": "anonymous_write",
@@ -82,12 +82,12 @@
       "kind": "deny",
       "area": "access",
       "expected": "쿼리의 userId·role을 권한으로 믿지 않고 401",
-      "observed": "HTTP 401",
+      "observed": "HTTP 401; bodyBytes=41",
       "result": "blocked",
       "requestIds": [
-        "f42589f8-8f24-453c-9f98-f87b48f39cb0"
+        "3a668eea-8306-45e4-a064-1cb9b71f9731"
       ],
-      "checkedAt": "2026-10-14T03:44:20.311Z"
+      "checkedAt": "2026-10-14T04:33:09.667Z"
     },
     {
       "attackId": "header_identity_ignored",
@@ -95,12 +95,12 @@
       "kind": "deny",
       "area": "access",
       "expected": "헤더의 사용자·역할을 권한으로 믿지 않고 401",
-      "observed": "HTTP 401",
+      "observed": "HTTP 401; bodyBytes=41",
       "result": "blocked",
       "requestIds": [
-        "11920f35-9495-43bc-a1b9-5b3d22d26062"
+        "a82d19e4-f22d-45dc-9702-2370d2ae6d3c"
       ],
-      "checkedAt": "2026-10-14T03:44:20.556Z"
+      "checkedAt": "2026-10-14T04:33:09.921Z"
     },
     {
       "attackId": "login_required",
@@ -119,12 +119,12 @@
       "kind": "allow",
       "area": "app",
       "expected": "자료실 첫 화면 GET이 200",
-      "observed": "HTTP 200",
+      "observed": "HTTP 200; bodyBytes=16967",
       "result": "allowed",
       "requestIds": [
-        "e37366a8-f491-451e-ba0e-49f21d9120e6"
+        "98c9d012-e2a9-4f11-bc4e-211881f7ba4d"
       ],
-      "checkedAt": "2026-10-14T03:44:20.800Z"
+      "checkedAt": "2026-10-14T04:33:10.175Z"
     },
     {
       "attackId": "original_direct_no_key",
@@ -132,12 +132,12 @@
       "kind": "deny",
       "area": "access",
       "expected": "키 없는 원본 Data API 직접 GET 거부",
-      "observed": "HTTP 401",
+      "observed": "HTTP 401; bodyBytes=101",
       "result": "blocked",
       "requestIds": [
-        "4e3ef5dd-d5f8-477a-a589-ead14f196217"
+        "971fa555-a9f1-4563-b186-1d0ae7360c6b"
       ],
-      "checkedAt": "2026-10-14T03:44:20.812Z"
+      "checkedAt": "2026-10-14T04:33:10.193Z"
     },
     {
       "attackId": "registered_device_note_allowed",
@@ -145,12 +145,12 @@
       "kind": "allow",
       "area": "decision",
       "expected": "등록 기기의 정상 메모 가상 요청 allow",
-      "observed": "HTTP 200; jsonReady=true",
+      "observed": "HTTP 200; bodyBytes=99; jsonReady=true",
       "result": "allowed",
       "requestIds": [
-        "8adbef0c-0e36-4516-a981-8db95c691357"
+        "67342d47-663c-4ef8-9f55-ef830ad6552b"
       ],
-      "checkedAt": "2026-10-14T03:44:20.878Z"
+      "checkedAt": "2026-10-14T04:33:10.273Z"
     },
     {
       "attackId": "unregistered_device_denied",
@@ -158,12 +158,12 @@
       "kind": "deny",
       "area": "decision",
       "expected": "미등록 기기 가상 요청 deny",
-      "observed": "HTTP 200; jsonReady=true",
+      "observed": "HTTP 200; bodyBytes=107; jsonReady=true",
       "result": "blocked",
       "requestIds": [
-        "944fead2-7ca3-467e-b38d-8c00e34b2142"
+        "4d222200-5468-4038-b7c6-d1f7429d6bde"
       ],
-      "checkedAt": "2026-10-14T03:44:21.146Z"
+      "checkedAt": "2026-10-14T04:33:10.526Z"
     },
     {
       "attackId": "unusual_access_step_up",
@@ -171,12 +171,12 @@
       "kind": "deny",
       "area": "decision",
       "expected": "복합 이상 접속 가상 요청 step_up",
-      "observed": "HTTP 200; jsonReady=true",
+      "observed": "HTTP 200; bodyBytes=101; jsonReady=true",
       "result": "blocked",
       "requestIds": [
-        "021f6823-92f4-4e72-b41b-f6eb66b09375"
+        "0818f35f-e80a-4db4-83b4-14e4cb622f2f"
       ],
-      "checkedAt": "2026-10-14T03:44:21.391Z"
+      "checkedAt": "2026-10-14T04:33:10.784Z"
     },
     {
       "attackId": "other_zone_route_denied",
@@ -184,12 +184,12 @@
       "kind": "deny",
       "area": "decision",
       "expected": "강사 자료 구역 가상 요청 deny",
-      "observed": "HTTP 200; jsonReady=true",
+      "observed": "HTTP 200; bodyBytes=109; jsonReady=true",
       "result": "blocked",
       "requestIds": [
-        "3aea333c-e2ff-4f5c-a313-fe73511d3975"
+        "0169bd4f-44bb-4107-b5a6-ef8f86a8cb39"
       ],
-      "checkedAt": "2026-10-14T03:44:21.647Z"
+      "checkedAt": "2026-10-14T04:33:11.036Z"
     },
     {
       "attackId": "burst_read_revocation",
@@ -197,12 +197,12 @@
       "kind": "deny",
       "area": "detection",
       "expected": "10분 내 과다 GET 가상 사건은 회수 제안",
-      "observed": "HTTP 200; jsonReady=true",
+      "observed": "HTTP 200; bodyBytes=103; jsonReady=true",
       "result": "blocked",
       "requestIds": [
-        "5ab5b666-517b-4869-b521-8b3c40f029d6"
+        "b32b6c65-9c01-420f-b73d-54f3aa0e8182"
       ],
-      "checkedAt": "2026-10-14T03:44:21.895Z"
+      "checkedAt": "2026-10-14T04:33:11.330Z"
     },
     {
       "attackId": "restore_without_login",
@@ -210,12 +210,12 @@
       "kind": "deny",
       "area": "restore",
       "expected": "로그인 없는 복구 경로는 보호됨",
-      "observed": "HTTP 405",
+      "observed": "HTTP 405; bodyBytes=48",
       "result": "blocked",
       "requestIds": [
-        "eddafaa4-3e69-441e-96d9-252805f09ccd"
+        "eabece20-07a3-4f99-b6de-8e0ba8b3ed6f"
       ],
-      "checkedAt": "2026-10-14T03:44:22.146Z"
+      "checkedAt": "2026-10-14T04:33:11.604Z"
     },
     {
       "attackId": "pwa_manifest_available",
@@ -223,12 +223,12 @@
       "kind": "allow",
       "area": "app",
       "expected": "설치형 웹앱 manifest가 200이고 standalone",
-      "observed": "HTTP 200; display=standalone",
+      "observed": "HTTP 200; bodyBytes=286",
       "result": "allowed",
       "requestIds": [
-        "9bc19afe-76f2-447d-a613-0ac9dd343ce2"
+        "7f3bab4e-8ac5-4b3d-957f-c290e9e07e9c"
       ],
-      "checkedAt": "2026-10-14T03:44:22.422Z"
+      "checkedAt": "2026-10-14T04:33:11.854Z"
     },
     {
       "attackId": "device_status_without_login",
@@ -236,12 +236,12 @@
       "kind": "deny",
       "area": "device",
       "expected": "로그인 없는 기기 상태 조회는 승인되지 않음",
-      "observed": "HTTP 401",
+      "observed": "HTTP 401; bodyBytes=55",
       "result": "blocked",
       "requestIds": [
-        "2c360bb3-ca5d-4e0d-a9dc-1754d5e3eddf"
+        "53ddb288-1ba5-4d6b-8ad9-cabd2202c711"
       ],
-      "checkedAt": "2026-10-14T03:44:22.430Z"
+      "checkedAt": "2026-10-14T04:33:11.862Z"
     },
     {
       "attackId": "approved_device_signed_requests",

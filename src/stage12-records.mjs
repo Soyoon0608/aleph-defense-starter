@@ -90,23 +90,22 @@ export async function runAttackRecords(config) {
         // JSON이 아닌 응답도 HTTP 결과로 기록합니다.
       }
   
-      let detail = '';
-  
-      if (Array.isArray(json?.notes)) {
-        detail =
-          `; notes=${json.notes.length}`;
-      } else if (
-        typeof json?.ready === 'boolean'
-      ) {
-        detail =
-          `; jsonReady=${json.ready}`;
-      } else if (
-        typeof json?.display === 'string'
-      ) {
-        detail =
-          `; display=${json.display}`;
+      const bodyBytes =
+        Buffer.byteLength(text, 'utf8');
+
+      let detail =
+        `; bodyBytes=${bodyBytes}`;
+
+      if (Array.isArray(json)) {
+        detail +=
+          `; jsonArrayLength=${json.length}`;
       }
-  
+
+      if (typeof json?.ready === 'boolean') {
+        detail +=
+          `; jsonReady=${json.ready}`;
+      }
+
       item.observed =
         `HTTP ${response.status}${detail}`;
   
