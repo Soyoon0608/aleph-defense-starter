@@ -111,7 +111,8 @@ async function callRestore({
   liveRows,
   backupRows,
   identity = 'b',
-  body,
+  noteId,
+  body = {},
   loadPolicyBackup,
   loadBackupManifest
 }) {
@@ -131,6 +132,9 @@ async function callRestore({
   await handleRestore({
     method: 'POST',
     headers: {},
+    query: {
+      noteId: noteId ?? backupRows[0]?.id
+    },
     body
   }, res, {
     supabaseUrl: new URL(config.identityProvider.issuer).origin,
@@ -183,7 +187,7 @@ test('restores one modified B note from the verified backup', async () => {
   const res = await callRestore({
     liveRows,
     backupRows: [backup],
-    body: { id: backup.id }
+    noteId: backup.id
   });
 
   assert.equal(res.statusCode, 200);
@@ -241,7 +245,7 @@ test('rejects a tampered backup hash', async () => {
   const res = await callRestore({
     liveRows,
     backupRows: [backup],
-    body: { id: backup.id }
+    noteId: backup.id
   });
 
   assert.equal(res.statusCode, 409);
@@ -256,7 +260,7 @@ test('only judge identity B may use the restore route', async () => {
     liveRows,
     backupRows: [backup],
     identity: 'a',
-    body: { id: backup.id }
+    noteId: backup.id
   });
 
   assert.equal(res.statusCode, 403);
@@ -278,7 +282,7 @@ test('stops before restore when the policy backup cannot be verified', async () 
   const res = await callRestore({
     liveRows,
     backupRows: [backup],
-    body: { id: backup.id },
+    noteId: backup.id,
     loadPolicyBackup: async () => {
       throw new Error('fixture_policy_backup_unverified');
     }
@@ -303,7 +307,7 @@ test('stops before restore when the independent note binding differs', async () 
   const res = await callRestore({
     liveRows,
     backupRows: [backup],
-    body: { id: backup.id },
+    noteId: backup.id,
     loadBackupManifest: async () => ({
       ...safeManifest,
       noteBindingSha256: '0'.repeat(64)

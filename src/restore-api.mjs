@@ -30,30 +30,24 @@ export function noteBindingDigest(id, ownerId, contentSha256) {
     .digest('hex');
 }
 
-function parseRestoreInput(body) {
-  if (body === undefined || body === null || body === '') {
-    return {};
-  }
+function parseRestoreInput(req) {
+  const noteId = req.query?.noteId;
+  const body = req.body;
 
-  let input;
-
-  try {
-    input = typeof body === 'string' ? JSON.parse(body) : body;
-  } catch {
-    throw new TypeError('invalid_restore_json');
-  }
-
-  if (!input || typeof input !== 'object' || Array.isArray(input)
-      || Object.keys(input).some((key) => key !== 'id')) {
-    throw new TypeError('invalid_restore_input');
-  }
-
-  if (input.id !== undefined
-      && (typeof input.id !== 'string' || !UUID.test(input.id))) {
+  if (typeof noteId !== 'string' || !UUID.test(noteId)) {
     throw new TypeError('invalid_restore_id');
   }
 
-  return input;
+  if (body !== undefined && body !== null && body !== ''
+      && (typeof body !== 'object'
+        || Array.isArray(body)
+        || Object.keys(body).length !== 0)) {
+    throw new TypeError('invalid_restore_input');
+  }
+
+  return {
+    id: noteId.toLowerCase()
+  };
 }
 
 async function readVerifiedPolicyBackup(dependencies = {}) {
@@ -112,7 +106,7 @@ export async function handleRestore(req, res, dependencies = {}) {
   let input;
 
   try {
-    input = parseRestoreInput(req.body);
+    input = parseRestoreInput(req);
   } catch {
     const rawBody =
       req.body && typeof req.body === 'object' && !Array.isArray(req.body)

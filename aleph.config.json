@@ -15,5 +15,5 @@
     "GET /api/announcements/:id"
   ],
   "originalApiUrl": "https://qmscbqyufehupfhombmu.supabase.co/rest/v1/byteback_notes",
-  "restoreRoute": "/api/restore"
+  "restoreRoute": "/api/restore/:noteId"
 }

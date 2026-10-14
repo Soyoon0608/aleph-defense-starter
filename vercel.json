@@ -13,5 +13,11 @@
         }
       ]
     }
+  ],
+  "rewrites": [
+    {
+      "source": "/api/restore/:noteId",
+      "destination": "/api/restore"
+    }
   ]
 }
