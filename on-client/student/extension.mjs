@@ -1,5 +1,5 @@
-// 이 파일은 학생이 같은 프로젝트에서 이어서 구현합니다.
-// 제공 UI를 받은 것만으로 단계 완료를 인정하지 않습니다.
+ // 이 파일은 학생이 같은 프로젝트에서 이어서 구현합니다.
+ // 제공 UI를 받은 것만으로 단계 완료를 인정하지 않습니다.
 export function createStudentView() {
   return {
     renderIdentity({ me, devices, sessions } = {}) {
@@ -11,6 +11,7 @@ export function createStudentView() {
         noncompliant: '보안 기준 미충족',
         unknown: '확인 불가',
       };
+
       const sessionLabels = {
         active: '활성',
         expired: '만료',
@@ -31,19 +32,31 @@ export function createStudentView() {
           : '확인 불가';
       }
 
+      // 기기 정보 및 원래 상태 코드 표시
       function device(parent, item) {
         text(parent, 'p', '기기 이름: ' + value(item?.label));
         text(parent, 'p', '기기 ID: ' + value(item?.id));
+
+        const status = item?.status;
+        const label = Object.hasOwn(deviceLabels, status)
+          ? deviceLabels[status]
+          : '확인 불가';
+
         text(parent, 'p', '기기 상태: ' +
-          (Object.hasOwn(deviceLabels, item?.status)
-            ? deviceLabels[item.status] : '확인 불가'));
+          label + ' (' + value(status) + ')');
       }
 
+      // 세션 정보 및 원래 상태 코드 표시
       function session(parent, item) {
         text(parent, 'p', '세션 ID: ' + value(item?.id));
+
+        const status = item?.status;
+        const label = Object.hasOwn(sessionLabels, status)
+          ? sessionLabels[status]
+          : '확인 불가';
+
         text(parent, 'p', '세션 상태: ' +
-          (Object.hasOwn(sessionLabels, item?.status)
-            ? sessionLabels[item.status] : '확인 불가'));
+          label + ' (' + value(status) + ')');
       }
 
       function section(title, state, renderData) {
@@ -94,11 +107,13 @@ export function createStudentView() {
         }
 
         const list = document.createElement('ul');
+
         for (const item of data) {
           const row = document.createElement('li');
           device(row, item);
           list.append(row);
         }
+
         panel.append(list);
       });
 
@@ -114,22 +129,45 @@ export function createStudentView() {
         }
 
         const list = document.createElement('ul');
+
         for (const item of data) {
           const row = document.createElement('li');
           session(row, item);
           list.append(row);
         }
+
         panel.append(list);
       });
 
       return root;
     },
-    renderDecision() { return '학생 구현 대기: 서버의 판정과 이유를 연결하세요.'; },
-    renderEvents() { return '학생 구현 대기: 본인 접속·XDR 기록을 연결하세요.'; },
-    renderStatus() { return '학생 구현 대기: 기기·세션·알림과 연결 점검 상태를 구분하세요.'; },
-    renderVulnerabilities() { return '학생 구현 대기: 정확한 설치 버전·OSV 출처·조회 시각·부분 결과·조회 실패를 구분하세요.'; },
-    renderAiConnection() { return '학생 구현 대기: 모델 응답 점검과 실제 사건 설명을 구분하고 AI 오류·취소·수동 복구를 안내하세요.'; },
-    renderExplanation() { return '학생 구현 대기: 선택한 사건의 근거·규칙·현재 상태와 AI 설명을 연결하세요. 제안은 자동 실행하지 않습니다.'; },
-    renderAction() { return '학생 구현 대기: 현재 사건·조치·실제 대상·사람 확인·ACK와 원천 효과·unknown을 구분하세요.'; },
+
+    renderDecision() {
+      return '학생 구현 대기: 서버의 판정과 이유를 연결하세요.';
+    },
+
+    renderEvents() {
+      return '학생 구현 대기: 본인 접속·XDR 기록을 연결하세요.';
+    },
+
+    renderStatus() {
+      return '학생 구현 대기: 기기·세션·알림과 연결 점검 상태를 구분하세요.';
+    },
+
+    renderVulnerabilities() {
+      return '학생 구현 대기: 정확한 설치 버전·OSV 출처·조회 시각·부분 결과·조회 실패를 구분하세요.';
+    },
+
+    renderAiConnection() {
+      return '학생 구현 대기: 모델 응답 점검과 실제 사건 설명을 구분하고 AI 오류·취소·수동 복구를 안내하세요.';
+    },
+
+    renderExplanation() {
+      return '학생 구현 대기: 선택한 사건의 근거·규칙·현재 상태와 AI 설명을 연결하세요. 제안은 자동 실행하지 않습니다.';
+    },
+
+    renderAction() {
+      return '학생 구현 대기: 현재 사건·조치·실제 대상·사람 확인·ACK와 원천 효과·unknown을 구분하세요.';
+    },
   };
 }
