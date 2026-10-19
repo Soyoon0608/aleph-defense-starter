@@ -8,3 +8,5 @@ public/aleph.json
 xdr/alerts.log
 
 xdr/brute-force/block-candidates.json
+
+!/on-client/.env.example
