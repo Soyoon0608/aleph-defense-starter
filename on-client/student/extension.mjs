@@ -1,5 +1,5 @@
- // 이 파일은 학생이 같은 프로젝트에서 이어서 구현합니다.
- // 제공 UI를 받은 것만으로 단계 완료를 인정하지 않습니다.
+// 이 파일은 학생이 같은 프로젝트에서 이어서 구현합니다.
+// 제공 UI를 받은 것만으로 단계 완료를 인정하지 않습니다.
 export function createStudentView() {
   return {
     renderIdentity({ me, devices, sessions } = {}) {
@@ -142,8 +142,92 @@ export function createStudentView() {
       return root;
     },
 
-    renderDecision() {
-      return '학생 구현 대기: 서버의 판정과 이유를 연결하세요.';
+    renderDecision({ status, mode, data, error, appId } = {}) {
+      const root = document.createElement('section');
+      root.setAttribute('aria-label', '업무 앱 접근 판정');
+
+      function line(content) {
+        const element = document.createElement('p');
+        element.textContent = content;
+        root.append(element);
+      }
+
+      function value(input, fallback = '확인 불가') {
+        return typeof input === 'string' && input.trim()
+          ? input
+          : fallback;
+      }
+
+      const modeLabels = {
+        demo: '예제 자료 · 실제 연결 아님',
+        disconnected: '연결 없음',
+        unknown: '확인 불가',
+      };
+
+      if (Object.hasOwn(modeLabels, mode)) {
+        line(modeLabels[mode]);
+      }
+
+      line('선택한 앱 ID: ' + value(appId));
+
+      if (status === 'idle') {
+        line('앱을 골라 접속을 요청하세요.');
+        return root;
+      }
+
+      if (status === 'loading') {
+        line('판정 확인 중');
+        return root;
+      }
+
+      if (status === 'error') {
+        line('요청 실패: ' + value(error?.message, '오류 설명 없음'));
+        line('요청 실패는 접근 거부 판정이 아닙니다.');
+        line('접근 허용 여부를 확인할 수 없습니다.');
+        return root;
+      }
+
+      if (status !== 'ok') {
+        line('판정 확인 불가(unknown)');
+        return root;
+      }
+
+      // 선택한 앱과 다른 응답을 현재 판정으로 표시하지 않습니다.
+      if (
+        typeof appId !== 'string' ||
+        !appId.trim() ||
+        data?.appId !== appId
+      ) {
+        line('판정 확인 불가(unknown)');
+        line('선택한 앱과 판정 응답의 앱 ID가 일치하지 않습니다.');
+        return root;
+      }
+
+      const labels = {
+        allow: '접근 허용(allow)',
+        deny: '접근 거부(deny)',
+        challenge: '추가 인증 또는 확인 필요(challenge)',
+        unknown: '판정 확인 불가(unknown)',
+      };
+
+      const decision = Object.hasOwn(labels, data?.decision)
+        ? data.decision
+        : 'unknown';
+
+      line('판정: ' + labels[decision]);
+      line('판정 이유: ' + value(data?.reason, '판정 이유 확인 불가'));
+      line('판정 시각: ' + value(data?.checkedAt, '판정 시각 확인 불가'));
+
+      if (decision === 'allow') {
+        line('정책상 접근 허용이며 실제 앱 접속 성공을 보장하지 않습니다.');
+      } else if (decision === 'challenge') {
+        line('추가 인증 또는 확인이 필요합니다.');
+        line('이 앱이 확인 절차를 대신 수행하지 않습니다.');
+      } else if (decision === 'unknown') {
+        line('접근 허용 여부를 확인할 수 없습니다.');
+      }
+
+      return root;
     },
 
     renderEvents() {
