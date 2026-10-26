@@ -1,3 +1,5 @@
+import { existsSync as attackCheckExistsSync } from 'node:fs';
+import { fileURLToPath as attackCheckFileURLToPath } from 'node:url';
 import { runAttackRecords } from './stage12-records.mjs';
 export { runAttackRecords };
 
@@ -188,6 +190,18 @@ async function runStepThreeChecks(config) {
 
 async function runStepFourChecks(config) {
   const results = await runStepThreeChecks(config);
+  const envPath = attackCheckFileURLToPath(new URL('../.env', import.meta.url));
+  if (!process.env.SUPABASE_PUBLISHABLE_KEY && attackCheckExistsSync(envPath)) {
+    process.loadEnvFile(envPath);
+  }
+  if (!process.env.SUPABASE_PUBLISHABLE_KEY?.trim()) {
+    results.push({
+      attackId: 'anonymous_direct_data_read',
+      expected: '공개용 키만 사용한 직접 Data API 요청 거부',
+      observed: '미실행: SUPABASE_PUBLISHABLE_KEY 설정 없음'
+    });
+    return results;
+  }
   const expected = '公開用キーだけの直接Data API要求を拒否'.replace(
     '公開用キーだけの直接Data API要求を拒否',
     '공개용 키만 사용한 직접 Data API 요청 거부');
@@ -196,7 +210,7 @@ async function runStepFourChecks(config) {
     const response = await fetch(
       config.step >= 5 ? config.originalApiUrl + '?select=id&limit=1' : origin + '/rest/v1/byteback_notes?select=id&limit=1',
       {
-        headers: { apikey: 'sb_publishable_bXsYOg9-Xygu4sMUfSj_Fg_YR1oDl3e' },
+        headers: { apikey: process.env.SUPABASE_PUBLISHABLE_KEY },
         redirect: 'error',
         signal: AbortSignal.timeout(10000)
       }

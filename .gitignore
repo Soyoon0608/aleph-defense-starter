@@ -10,3 +10,6 @@ xdr/alerts.log
 xdr/brute-force/block-candidates.json
 
 !/on-client/.env.example
+
+# Root configuration example without actual values
+!/.env.example
